@@ -48,7 +48,7 @@ export default function OBSOverlayPage() {
         if ((m.player2Score || 0) > (m.player1Score || 0)) won++; else if (m.player2Score === m.player1Score) drawn++; else lost++;
       }
     });
-    return { ...p, played, points: (won * 3) + (drawn * 1), gd: gf - ga, gf };
+    return { ...p, played, won, drawn, lost, points: (won * 3) + (drawn * 1), gd: gf - ga, gf, ga };
   }).sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf);
 
   const topTeams = standings.slice(0, 5);
@@ -62,31 +62,60 @@ export default function OBSOverlayPage() {
       {/* Main Content Area */}
       <div className="flex justify-between items-end w-full mt-auto">
         
-        {/* Left: Standings */}
+        {/* Left: Full Standings Table */}
         <motion.div 
           initial={{ x: -100, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
-          className="w-80 bg-black/80 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-2xl"
+          className="w-auto min-w-[700px] bg-black/80 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-2xl"
         >
-          <div className="bg-primary/20 px-4 py-3 border-b border-white/10 flex justify-between items-center">
-            <h2 className="text-lg font-bold text-primary tracking-wide uppercase">Top Teams</h2>
-            <span className="text-xs text-white/50">{tournament.name}</span>
+          <div className="bg-primary/20 px-6 py-4 border-b border-white/10 flex justify-between items-center">
+            <h2 className="text-xl font-bold text-primary tracking-widest uppercase">League Standings</h2>
+            <span className="text-sm text-white/50 font-semibold">{tournament.name}</span>
           </div>
-          <div className="p-4 flex flex-col gap-3">
-            {topTeams.map((team, idx) => {
-              const iso = getIsoFromFlagString(team.flag);
-              return (
-                <div key={team._id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-white/50 font-bold text-sm w-4">{idx + 1}</span>
-                    {iso && <ReactCountryFlag countryCode={iso} svg style={{ width: '24px', height: '18px' }} />}
-                    <span className="font-semibold truncate max-w-[120px]">{team.name}</span>
-                  </div>
-                  <span className="font-bold text-primary">{team.points} pts</span>
-                </div>
-              );
-            })}
+          <div className="p-2">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="text-white/50 text-xs font-bold tracking-widest uppercase border-b border-white/5">
+                  <th className="px-4 py-3 w-16 text-center">Pos</th>
+                  <th className="px-4 py-3">Club / Player</th>
+                  <th className="px-4 py-3 text-center w-12">MP</th>
+                  <th className="px-4 py-3 text-center w-12">W</th>
+                  <th className="px-4 py-3 text-center w-12">D</th>
+                  <th className="px-4 py-3 text-center w-12">L</th>
+                  <th className="px-4 py-3 text-center w-12">GF</th>
+                  <th className="px-4 py-3 text-center w-12">GA</th>
+                  <th className="px-4 py-3 text-center w-16">GD</th>
+                  <th className="px-4 py-3 text-center w-16 text-primary">Pts</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topTeams.map((team, idx) => {
+                  const iso = getIsoFromFlagString(team.flag);
+                  return (
+                    <tr key={team._id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
+                      <td className="px-4 py-3 text-center">
+                        <span className="text-white/80 font-black text-lg">{idx + 1}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          {iso && <ReactCountryFlag countryCode={iso} svg style={{ width: '28px', height: '20px' }} />}
+                          <span className="font-bold text-sm tracking-wide">{team.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm font-semibold text-white/70">{team.played}</td>
+                      <td className="px-4 py-3 text-center text-sm font-semibold text-white/70">{team.won}</td>
+                      <td className="px-4 py-3 text-center text-sm font-semibold text-white/70">{team.drawn}</td>
+                      <td className="px-4 py-3 text-center text-sm font-semibold text-white/70">{team.lost}</td>
+                      <td className="px-4 py-3 text-center text-sm font-semibold text-white/70">{team.gf}</td>
+                      <td className="px-4 py-3 text-center text-sm font-semibold text-white/70">{team.ga}</td>
+                      <td className="px-4 py-3 text-center text-sm font-bold">{team.gd > 0 ? `+${team.gd}` : team.gd}</td>
+                      <td className="px-4 py-3 text-center text-base font-black text-primary">{team.points}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </motion.div>
 
