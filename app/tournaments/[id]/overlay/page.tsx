@@ -59,8 +59,6 @@ export default function OBSOverlayPage() {
     return { ...p, played, won, drawn, lost, points: (won * 3) + (drawn * 1), gd: gf - ga, gf, ga };
   }).sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf);
 
-  const topTeams = standings.slice(0, 5);
-  
   const completedMatches = matches.filter(m => m.status === "Completed");
   const visibleMatches = completedMatches.slice(pageIndex * 4, (pageIndex + 1) * 4);
 
@@ -98,7 +96,7 @@ export default function OBSOverlayPage() {
                 </tr>
               </thead>
               <tbody>
-                {topTeams.map((team, idx) => {
+                {standings.map((team, idx) => {
                   const iso = getIsoFromFlagString(team.flag);
                   return (
                     <tr key={team._id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
