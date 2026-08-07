@@ -106,6 +106,7 @@ export default function OBSOverlayPage() {
               </tbody>
             </table>
           </div>
+        </motion.div>
       </div>
     </div>
   );
