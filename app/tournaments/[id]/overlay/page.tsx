@@ -31,6 +31,14 @@ export default function OBSOverlayPage() {
     return () => clearInterval(interval);
   }, [matches]);
 
+  // Auto-refresh the page every 20 seconds
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      window.location.reload();
+    }, 20000);
+    return () => clearInterval(refreshInterval);
+  }, []);
+
   if (!tournament || !participants || !matches) {
     return null; // Don't show loading on stream
   }
