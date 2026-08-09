@@ -1,3 +1,26 @@
-import Link from 'next/link'
-import { Logo } from './logo'
-export function SiteFooter() { return <footer className="border-t border-border bg-[#090909]"><div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-10 sm:px-6 md:flex-row md:items-end md:justify-between"><div><Logo /><p className="mt-4 max-w-sm text-sm leading-6 text-muted-foreground">The competitive home for players, teams, and tournament organizers. Built by DoneStudio.</p></div><nav className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted-foreground"><Link href="/tournaments">Tournaments</Link><Link href="/games">Games</Link><Link href="/rankings">Rankings</Link><Link href="/dashboard">Organizer Portal</Link></nav></div><div className="border-t border-border py-5 text-center text-xs text-muted-foreground">© 2026 DoneStudio Arena. Play. Compete. Become Champion.</div></footer> }
+import Link from "next/link";
+import { Logo } from "./logo";
+export function SiteFooter() {
+  return (
+    <footer className="border-t border-border bg-[#090909]">
+      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-10 sm:px-6 md:flex-row md:items-end md:justify-between">
+        <div>
+          <Logo />
+          <p className="mt-4 max-w-sm text-sm leading-6 text-muted-foreground">
+            The competitive home for players, teams, and tournament organizers.
+            Built by DoneStudio.
+          </p>
+        </div>
+        <nav className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted-foreground">
+          <Link href="/tournaments">Tournaments</Link>
+          <Link href="/games">Games</Link>
+          <Link href="/rankings">Rankings</Link>
+          <Link href="/dashboard">Organizer Portal</Link>
+        </nav>
+      </div>
+      <div className="border-t border-border py-5 text-center text-xs text-muted-foreground">
+        © 2026 D-One Arena by DoneStudio. Play. Compete. Become Champion.
+      </div>
+    </footer>
+  );
+}

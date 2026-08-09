@@ -1,8 +1,71 @@
-'use client'
-import { useState } from 'react'
-import { useQuery } from 'convex/react'
-import { api } from '@/convex/_generated/api'
-import { Trophy } from 'lucide-react'
-import type { GameId } from '@/lib/game-modules'
-import { cn } from '@/lib/utils'
-export default function ChampionsPage() { const [game, setGame] = useState<GameId | undefined>(); const champions = useQuery(api.arena.listChampions, { gameId: game }); return <div className="mx-auto min-h-[70vh] max-w-7xl px-4 py-16 sm:px-6"><p className="text-xs font-bold uppercase tracking-[.24em] text-primary">Hall of Fame</p><h1 className="mt-3 font-display text-6xl font-bold uppercase sm:text-8xl">Champions</h1><p className="mt-5 max-w-xl text-muted-foreground">The names that survived every round and lifted the trophy.</p><div className="mt-8 flex gap-2">{[{ id: undefined, label: 'All' }, { id: 'efootball' as const, label: 'eFootball' }, { id: 'valorant' as const, label: 'VALORANT' }].map((item) => <button key={item.label} onClick={() => setGame(item.id)} className={cn('rounded-full border px-5 py-2 text-xs font-bold', game === item.id ? 'border-primary bg-primary' : 'border-border text-muted-foreground')}>{item.label}</button>)}</div><div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{champions?.map((champion) => <div key={champion._id} className="rounded-2xl border border-border bg-card p-7"><Trophy className="size-8 text-primary" /><p className="mt-10 text-xs font-bold uppercase tracking-wider text-muted-foreground">{champion.tournamentName}</p><h2 className="mt-2 font-display text-3xl font-bold uppercase">{champion.winnerName}</h2><p className="mt-2 text-sm text-muted-foreground">{champion.gameId} · {new Date(champion.completedAt).getFullYear()}</p></div>)}{champions?.length === 0 && <div className="col-span-full rounded-xl border border-dashed border-border py-20 text-center"><Trophy className="mx-auto size-9 text-muted-foreground" /><p className="mt-4 text-muted-foreground">The first DoneArena champions will appear here.</p></div>}</div></div> }
+"use client";
+import { useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Trophy } from "lucide-react";
+import type { GameId } from "@/lib/game-modules";
+import { cn } from "@/lib/utils";
+export default function ChampionsPage() {
+  const [game, setGame] = useState<GameId | undefined>();
+  const champions = useQuery(api.arena.listChampions, { gameId: game });
+  return (
+    <div className="mx-auto min-h-[70vh] max-w-7xl px-4 py-16 sm:px-6">
+      <p className="text-xs font-bold uppercase tracking-[.24em] text-primary">
+        Hall of Fame
+      </p>
+      <h1 className="mt-3 font-display text-6xl font-bold uppercase sm:text-8xl">
+        Champions
+      </h1>
+      <p className="mt-5 max-w-xl text-muted-foreground">
+        The names that survived every round and lifted the trophy.
+      </p>
+      <div className="mt-8 flex gap-2">
+        {[
+          { id: undefined, label: "All" },
+          { id: "efootball" as const, label: "eFootball" },
+          { id: "valorant" as const, label: "VALORANT" },
+        ].map((item) => (
+          <button
+            key={item.label}
+            onClick={() => setGame(item.id)}
+            className={cn(
+              "rounded-full border px-5 py-2 text-xs font-bold",
+              game === item.id
+                ? "border-primary bg-primary"
+                : "border-border text-muted-foreground",
+            )}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+      <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {champions?.map((champion) => (
+          <div
+            key={champion._id}
+            className="rounded-2xl border border-border bg-card p-7"
+          >
+            <Trophy className="size-8 text-primary" />
+            <p className="mt-10 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              {champion.tournamentName}
+            </p>
+            <h2 className="mt-2 font-display text-3xl font-bold uppercase">
+              {champion.winnerName}
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {champion.gameId} · {new Date(champion.completedAt).getFullYear()}
+            </p>
+          </div>
+        ))}
+        {champions?.length === 0 && (
+          <div className="col-span-full rounded-xl border border-dashed border-border py-20 text-center">
+            <Trophy className="mx-auto size-9 text-muted-foreground" />
+            <p className="mt-4 text-muted-foreground">
+              The first D-One Arena champions will appear here.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
