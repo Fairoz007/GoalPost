@@ -33,7 +33,7 @@ export function D1StudioPopup() {
         <button
           type="button"
           onClick={dismiss}
-          aria-label="Close D1 Studio promotion"
+          aria-label="Close D-One Studio promotion"
           className="absolute right-4 top-4 flex size-8 items-center justify-center rounded-full border border-white/10 text-muted-foreground transition hover:bg-white/5 hover:text-white"
         >
           <X className="size-4" />
@@ -48,21 +48,21 @@ export function D1StudioPopup() {
           id="d1-studio-title"
           className="mt-2 font-display text-3xl font-bold uppercase"
         >
-          Meet D1 Studio
+          Meet D-One Studio
         </h2>
         <p className="mt-3 pr-3 text-sm leading-6 text-muted-foreground">
-          D1 Studio is an independent game development company creating
+          D-One Studio is an independent game development company creating
           immersive, player-first worlds through bold ideas, thoughtful design,
           and meticulous craft.
         </p>
         <div className="mt-6 flex items-center gap-3">
           <a
-            href="https://www.dlstudio.dev/"
+            href="https://donestudio.in/"
             target="_blank"
             rel="noopener noreferrer sponsored"
             className={cn(buttonVariants({ size: "lg" }), "flex-1")}
           >
-            Visit D1 Studio <ArrowUpRight className="size-4" />
+            Visit D-One Studio <ArrowUpRight className="size-4" />
           </a>
           <button
             type="button"
