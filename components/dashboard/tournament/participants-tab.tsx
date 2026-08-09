@@ -33,7 +33,8 @@ export function ParticipantsTab({ participants, onAddParticipant, onRemovePartic
 
   const historicalParticipants = useQuery(api.participants.getAllUnique) || [];
   
-  const handleSelectHistorical = (participantId: string) => {
+  const handleSelectHistorical = (participantId: string | null) => {
+    if (!participantId) return;
     const p = historicalParticipants.find(x => x._id === participantId);
     if (p) {
       setNewName(p.name);

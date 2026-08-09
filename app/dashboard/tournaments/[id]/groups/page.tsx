@@ -30,6 +30,7 @@ export default function GroupsPage() {
   const removeGroup = useMutation(api.groups.remove);
   const generateMatches = useMutation(api.matches.generateGroupMatches);
   const updateScore = useMutation(api.matches.updateScore);
+  const upsertStats = useMutation(api.matches.upsertStats);
   const assignToGroup = useMutation(api.participants.assignToGroup);
 
   if (tournament === undefined || participants === undefined || groups === undefined || matches === undefined) {
@@ -42,7 +43,11 @@ export default function GroupsPage() {
     </div>;
   }
 
-  if (tournament?.format === "Single Group + Finals") {
+  if (tournament === null) {
+    return <div className="rounded-xl border border-dashed border-border p-10 text-center text-muted-foreground">Tournament not found.</div>;
+  }
+
+  if (tournament.format === "Single Group + Finals") {
     return (
       <div className="py-12 text-center text-muted-foreground">
         Groups are managed automatically in Single Group formats.
@@ -92,6 +97,8 @@ export default function GroupsPage() {
                 group={activeGroup}
                 participants={participants}
                 matches={matches}
+                gameId={tournament.gameId === "valorant" ? "valorant" : "efootball"}
+                onUpdateStats={(matchId, participantId, values) => upsertStats({ matchId, participantId, gameId: tournament.gameId === "valorant" ? "valorant" : "efootball", ...values })}
                 onGenerateMatches={(id) => generateMatches({ tournamentId, groupId: id })}
                 onUpdateScore={(id, p1s, p2s) => updateScore({ matchId: id, player1Score: p1s, player2Score: p2s })}
                 onRemoveGroup={async (id) => {

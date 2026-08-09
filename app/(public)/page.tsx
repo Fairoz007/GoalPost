@@ -1,58 +1,33 @@
-"use client";
+'use client'
 
-import Link from "next/link";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Trophy, PlayCircle } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { useQuery } from 'convex/react'
+import { api } from '@/convex/_generated/api'
+import { ArrowRight, Crosshair, Gamepad2, Radio, ShieldCheck, Sparkles, Trophy, Users } from 'lucide-react'
+import { buttonVariants } from '@/components/ui/button'
+import { TournamentCard, type TournamentCardData } from '@/components/arena/tournament-card'
+import { cn } from '@/lib/utils'
 
 export default function Home() {
-  const tournaments = useQuery(api.tournaments.get);
+  const discovery = useQuery(api.tournaments.getDiscovery)
+  const tournaments = (discovery?.tournaments ?? []) as TournamentCardData[]
+  const live = tournaments.filter((t) => t.status === 'Ongoing')
+  const upcoming = tournaments.filter((t) => t.status !== 'Completed' && t.status !== 'Ongoing').slice(0, 4)
+  const stats = discovery?.stats ?? { activeTournaments: 0, registeredCompetitors: 0, completedMatches: 0, games: 2 }
+  return <>
+    <section className="relative min-h-[82vh] overflow-hidden border-b border-border"><div className="field-grid absolute inset-0 opacity-50" /><div className="absolute -right-24 top-10 size-[520px] rounded-full bg-primary/10 blur-[120px]" /><div className="mx-auto grid min-h-[82vh] max-w-7xl items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[1.15fr_.85fr]">
+      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="relative z-10"><p className="mb-5 flex items-center gap-2 text-xs font-bold uppercase tracking-[.28em] text-primary"><span className="h-px w-8 bg-primary" />DoneStudio presents</p><h1 className="font-display text-[clamp(4.5rem,11vw,9rem)] font-bold uppercase leading-[.78] tracking-[-.055em]">Enter<br /><span className="text-glow text-primary">The Arena</span></h1><p className="mt-8 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">One platform for elite competition. Discover tournaments, build your legacy, and become the name everyone remembers.</p><div className="mt-8 flex flex-wrap gap-3"><Link href="/tournaments" className={buttonVariants({ size: 'lg' })}>Explore Tournaments <ArrowRight className="size-4" /></Link><Link href="/rankings" className={buttonVariants({ size: 'lg', variant: 'outline' })}>View Rankings</Link></div>
+      <dl className="mt-12 grid max-w-xl grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-4">{[{ value: stats.activeTournaments, label: 'Active' }, { value: stats.registeredCompetitors, label: 'Competitors' }, { value: stats.completedMatches, label: 'Matches' }, { value: stats.games, label: 'Games' }].map((item) => <div key={item.label} className="bg-background/90 p-4"><dt className="font-display text-2xl font-bold">{item.value.toLocaleString()}</dt><dd className="text-[10px] uppercase tracking-wider text-muted-foreground">{item.label}</dd></div>)}</dl></motion.div>
+      <motion.div initial={{ opacity: 0, scale: .94 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: .15 }} className="relative hidden h-[560px] lg:block"><div className="absolute inset-10 -skew-x-6 rounded-3xl border border-white/10 bg-[linear-gradient(145deg,#1b1b1b,#090909)] shadow-2xl"><div className="absolute inset-0 overflow-hidden rounded-3xl"><div className="absolute -right-24 -top-20 size-80 rounded-full border-[70px] border-primary/15" /><div className="absolute bottom-10 left-10 font-display text-[10rem] font-bold leading-none text-white/[.025]">A</div></div></div><div className="absolute left-0 top-20 rounded-xl border border-white/10 bg-black/80 p-5 shadow-xl"><Gamepad2 className="mb-8 size-8 text-primary" /><p className="font-display text-2xl font-bold">eFOOTBALL</p><p className="text-xs text-muted-foreground">1v1 · precision football</p></div><div className="absolute bottom-16 right-0 rounded-xl border border-primary/30 bg-[#12090b]/95 p-5 shadow-[0_0_50px_rgba(239,35,60,.15)]"><Crosshair className="mb-8 size-8 text-[#ff4655]" /><p className="font-display text-2xl font-bold">VALORANT</p><p className="text-xs text-muted-foreground">5v5 · tactical combat</p></div><div className="absolute left-1/2 top-1/2 flex size-28 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-primary/30 bg-primary/10"><Trophy className="size-11 text-primary" /></div></motion.div>
+    </div></section>
 
-  return (
-    <div className="flex min-h-screen flex-col items-center py-24 px-4 text-center">
-      <Trophy className="mb-6 size-16 text-primary" />
-      <h1 className="text-balance font-display text-4xl font-bold tracking-tight sm:text-6xl md:text-7xl">
-        eFootball <span className="text-primary text-glow">Tournaments</span>
-      </h1>
-      <p className="mt-4 max-w-xl text-lg text-muted-foreground">
-        Live standings, brackets, and fixtures for our eFootball community.
-      </p>
+    {live.length > 0 && <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6"><div className="mb-8 flex items-end justify-between"><div><p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.22em] text-primary"><Radio className="size-3.5" />Live now</p><h2 className="mt-2 font-display text-4xl font-bold uppercase">Competition in motion</h2></div></div><div className="grid gap-5 md:grid-cols-2">{live.slice(0, 2).map((t, i) => <TournamentCard key={t._id} tournament={t} featured={i === 0 && live.length === 1} />)}</div></section>}
 
-      <div className="mt-8 flex gap-4">
-        <Link href="/dashboard" className={buttonVariants({ size: "lg" })}>
-          Manage Tournaments
-        </Link>
-      </div>
+    <section className="border-y border-border bg-[#0a0a0a]"><div className="mx-auto max-w-7xl px-4 py-20 sm:px-6"><div className="mb-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-xs font-bold uppercase tracking-[.22em] text-primary">Choose your arena</p><h2 className="mt-2 font-display text-4xl font-bold uppercase sm:text-5xl">Different games. One legacy.</h2></div><Link href="/games" className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-white">Explore all games <ArrowRight className="size-4" /></Link></div><div className="grid gap-5 md:grid-cols-2">{[{ id: 'efootball', name: 'eFootball', icon: Gamepad2, detail: 'Competitive 1v1', copy: 'Pure football intelligence, from group stages to the final whistle.' }, { id: 'valorant', name: 'VALORANT', icon: Crosshair, detail: 'Tactical 5v5', copy: 'Build a roster, master every map, and fight through the bracket.' }].map((game) => <Link href={`/games/${game.id}`} key={game.id} className="group relative overflow-hidden rounded-2xl border border-border bg-card p-7 transition hover:border-primary/40 sm:p-9"><div className="absolute right-0 top-0 size-44 rounded-full bg-primary/5 blur-3xl transition group-hover:bg-primary/10" /><game.icon className="size-9 text-primary" /><p className="mt-10 text-xs font-bold uppercase tracking-[.2em] text-muted-foreground">{game.detail}</p><h3 className="mt-2 font-display text-4xl font-bold">{game.name}</h3><p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground">{game.copy}</p><ArrowRight className="mt-7 size-5 transition group-hover:translate-x-1 group-hover:text-primary" /></Link>)}</div></div></section>
 
-      <div className="mt-20 w-full max-w-4xl">
-        <h2 className="text-2xl font-bold mb-6 text-left">Live & Upcoming Tournaments</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {tournaments === undefined ? (
-            <p className="text-muted-foreground">Loading tournaments...</p>
-          ) : tournaments.length === 0 ? (
-            <p className="text-muted-foreground text-left">No tournaments found.</p>
-          ) : (
-            tournaments.map((t) => (
-              <Link
-                key={t._id}
-                href={`/tournaments/${t._id}`}
-                className="flex flex-col items-start gap-2 rounded-xl border border-border bg-card p-6 transition-colors hover:border-primary/50 text-left"
-              >
-                <div className="flex w-full justify-between items-start">
-                  <h3 className="font-semibold text-lg">{t.name}</h3>
-                  <Badge variant={t.status === "Live" || t.status === "Ongoing" ? "default" : "secondary"}>
-                    {t.status}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">{t.format} • {new Date(t.startDate).toLocaleDateString()}</p>
-              </Link>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
+    <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6"><div className="mb-8 flex items-end justify-between"><div><p className="text-xs font-bold uppercase tracking-[.22em] text-primary">Next up</p><h2 className="mt-2 font-display text-4xl font-bold uppercase">Upcoming tournaments</h2></div><Link href="/tournaments" className="text-sm text-muted-foreground hover:text-white">View all</Link></div>{discovery === undefined ? <div className="grid gap-5 md:grid-cols-2"><div className="h-72 animate-pulse rounded-2xl bg-card" /><div className="h-72 animate-pulse rounded-2xl bg-card" /></div> : upcoming.length ? <div className="grid gap-5 md:grid-cols-2">{upcoming.map((t) => <TournamentCard key={t._id} tournament={t} />)}</div> : <div className="rounded-2xl border border-dashed border-border py-16 text-center"><Sparkles className="mx-auto size-8 text-primary" /><h3 className="mt-4 font-display text-2xl font-bold uppercase">The next battle is being prepared</h3><p className="mt-2 text-sm text-muted-foreground">Organizers can publish a tournament from the Arena dashboard.</p><Link href="/dashboard/tournaments/create" className={cn(buttonVariants({ variant: 'outline' }), 'mt-6')}>Host a Tournament</Link></div>}</section>
+
+    <section className="border-t border-border"><div className="mx-auto grid max-w-7xl gap-px bg-border sm:grid-cols-3">{[{ icon: ShieldCheck, title: 'Built for organizers', copy: 'Formats, schedules, disputes, and live results in one control center.' }, { icon: Users, title: 'Made for competitors', copy: 'Registration, check-in, rankings, profiles, and match history.' }, { icon: Trophy, title: 'Every win remembered', copy: 'Champions enter the Hall of Fame and build a lasting Arena record.' }].map((item) => <div key={item.title} className="bg-background p-8 sm:p-10"><item.icon className="size-6 text-primary" /><h3 className="mt-6 font-display text-xl font-bold uppercase">{item.title}</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{item.copy}</p></div>)}</div></section>
+  </>
 }

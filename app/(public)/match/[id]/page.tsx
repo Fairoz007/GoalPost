@@ -1,0 +1,27 @@
+'use client'
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
+import { useQuery } from 'convex/react'
+import { api } from '@/convex/_generated/api'
+import type { Id } from '@/convex/_generated/dataModel'
+import { ArrowLeft, BarChart3, CalendarDays, Flag, Radio } from 'lucide-react'
+import { getGameModule } from '@/lib/game-modules'
+import { cn } from '@/lib/utils'
+
+export default function MatchPage() {
+  const params = useParams<{ id: string }>()
+  const match = useQuery(api.matches.getById, { id: params.id as Id<'matches'> })
+  if (match === undefined) return <div className="mx-auto max-w-5xl px-4 py-20"><div className="h-96 animate-pulse rounded-2xl bg-card" /></div>
+  if (!match) return <div className="py-32 text-center">Match not found.</div>
+  const game = getGameModule(match.gameId)
+  const statNames: [string, string][] = game.id === 'valorant' ? [['mapsWon', 'Maps'], ['roundsWon', 'Rounds'], ['kills', 'Kills'], ['acs', 'ACS']] : [['goals', 'Goals'], ['possession', 'Possession'], ['shots', 'Shots'], ['cards', 'Cards']]
+  const p1stats = match.stats.find((s) => s.participantId === match.player1Id) as Record<string, number> | undefined
+  const p2stats = match.stats.find((s) => s.participantId === match.player2Id) as Record<string, number> | undefined
+  return <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <Link href={match.tournament?.slug ? `/tournament/${match.tournament.slug}` : `/tournaments/${match.tournamentId}`} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-white"><ArrowLeft className="size-4" />Back to tournament</Link>
+    <section className="field-grid relative mt-6 overflow-hidden rounded-2xl border border-border bg-card px-5 py-12 sm:px-10"><div className="relative text-center"><div className="flex justify-center gap-3 text-xs font-bold uppercase tracking-wider text-muted-foreground"><span>{game.name}</span><span>·</span><span>{match.round ?? 'Tournament match'}</span></div><div className="mt-4 flex justify-center"><span className={cn('flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase', match.status === 'Live' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>{match.status === 'Live' && <Radio className="size-3" />}{match.status}</span></div><div className="mx-auto mt-10 grid max-w-4xl grid-cols-[1fr_auto_1fr] items-center gap-4"><Competitor name={match.player1?.name ?? 'TBD'} detail={match.player1?.captain ?? match.player1?.countryCode} /><div><div className="font-display text-5xl font-bold tabular-nums sm:text-7xl">{match.player1Score ?? '–'} <span className="text-2xl text-muted-foreground">:</span> {match.player2Score ?? '–'}</div><p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground"><CalendarDays className="size-3" />{new Date(match.date).toLocaleString()}</p></div><Competitor name={match.player2?.name ?? 'TBD'} detail={match.player2?.captain ?? match.player2?.countryCode} /></div></div></section>
+    <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]"><section className="rounded-2xl border border-border bg-card p-6"><h2 className="flex items-center gap-2 font-display text-2xl font-bold uppercase"><BarChart3 className="size-5 text-primary" />Match statistics</h2><div className="mt-8 space-y-6">{statNames.map(([key, label]) => <Stat key={key} label={label} first={p1stats?.[key] ?? 0} second={p2stats?.[key] ?? 0} suffix={key === 'possession' ? '%' : ''} />)}</div></section><aside className="rounded-2xl border border-border bg-card p-6"><Flag className="size-5 text-primary" /><h2 className="mt-5 font-display text-xl font-bold uppercase">Match details</h2><dl className="mt-5 space-y-4 text-sm"><div><dt className="text-xs uppercase text-muted-foreground">Format</dt><dd className="mt-1">Best of {match.bestOf ?? (game.id === 'valorant' ? 3 : 1)}</dd></div><div><dt className="text-xs uppercase text-muted-foreground">Stage</dt><dd className="mt-1">{match.round ?? 'Main stage'}</dd></div><div><dt className="text-xs uppercase text-muted-foreground">Tournament</dt><dd className="mt-1">{match.tournament?.name}</dd></div></dl></aside></div>
+  </div>
+}
+function Competitor({ name, detail }: { name: string; detail?: string }) { return <div className="min-w-0 text-center"><div className="mx-auto flex size-16 items-center justify-center rounded-xl border border-border bg-background font-display text-xl font-bold text-primary sm:size-20">{name.slice(0, 2).toUpperCase()}</div><p className="mt-4 truncate font-display text-lg font-bold sm:text-2xl">{name}</p><p className="mt-1 text-xs text-muted-foreground">{detail ?? 'Arena competitor'}</p></div> }
+function Stat({ label, first, second, suffix }: { label: string; first: number; second: number; suffix: string }) { const total = first + second || 1; return <div><div className="mb-2 flex justify-between text-sm"><span className="font-bold">{first}{suffix}</span><span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span><span className="font-bold">{second}{suffix}</span></div><div className="flex h-1.5 overflow-hidden rounded-full bg-muted"><div className="bg-primary" style={{ width: `${first / total * 100}%` }} /><div className="bg-white/35" style={{ width: `${second / total * 100}%` }} /></div></div> }

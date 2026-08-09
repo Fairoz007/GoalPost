@@ -7,48 +7,18 @@ import './globals.css'
 
 const geistSans = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
 const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
-const oswald = Oswald({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-oswald',
-})
+const oswald = Oswald({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-oswald' })
 
 export const metadata: Metadata = {
-  title: 'GoalPost — Football Tournament Platform',
-  description:
-    'Professional football tournament management: fixtures, live scores, standings, knockout brackets, teams, players and stats.',
-  generator: 'v0.app',
-  keywords: [
-    'football tournament',
-    'league management',
-    'fixtures',
-    'standings',
-    'live scores',
-    'knockout bracket',
-  ],
+  metadataBase: new URL('https://arena.donestudio.in'),
+  title: { default: 'DoneArena — Play. Compete. Become Champion.', template: '%s | DoneArena' },
+  description: 'DoneStudio Arena is a premium esports tournament platform for eFootball, VALORANT, and the games coming next.',
+  generator: 'DoneStudio',
+  keywords: ['esports tournaments', 'eFootball', 'VALORANT', 'tournament hosting', 'brackets', 'rankings'],
+  openGraph: { title: 'DoneArena', description: 'Enter the arena. Play, compete, become champion.', url: 'https://arena.donestudio.in', siteName: 'DoneArena', type: 'website' },
 }
+export const viewport: Viewport = { colorScheme: 'dark', themeColor: '#070707' }
 
-export const viewport: Viewport = {
-  colorScheme: 'dark',
-  themeColor: '#020617',
-}
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
-  return (
-    <html
-      lang="en"
-      className={`dark bg-background ${geistSans.variable} ${geistMono.variable} ${oswald.variable}`}
-    >
-      <body className="font-sans antialiased">
-        <TooltipProvider delayDuration={200}>
-          <ConvexClientProvider>{children}</ConvexClientProvider>
-        </TooltipProvider>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
-      </body>
-    </html>
-  )
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <html lang="en" className={`dark bg-background ${geistSans.variable} ${geistMono.variable} ${oswald.variable}`}><body className="font-sans antialiased"><TooltipProvider><ConvexClientProvider>{children}</ConvexClientProvider></TooltipProvider>{process.env.NODE_ENV === 'production' && <Analytics />}</body></html>
 }

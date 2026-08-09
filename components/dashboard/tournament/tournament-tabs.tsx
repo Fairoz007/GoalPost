@@ -12,16 +12,18 @@ interface TournamentTabsProps {
 
 export function TournamentTabs({ tournamentId, format }: TournamentTabsProps) {
   const pathname = usePathname();
+  const hasGroups = ["Groups", "Groups + Knockout"].includes(format);
+  const hasKnockout = ["Knockout", "Single Elimination", "Double Elimination", "Groups", "Groups + Knockout", "Single Group + Finals"].includes(format);
 
   const tabs = [
     { id: "overview", label: "Overview" },
     { id: "participants", label: "Participants" },
-    { id: "groups", label: "Groups", hidden: format === "Single Group + Finals" },
+    { id: "groups", label: "Groups", hidden: !hasGroups },
     { id: "fixtures", label: "Fixtures" },
     { id: "standings", label: "Standings" },
-    { id: "knockout", label: "Knockout" },
+    { id: "knockout", label: "Knockout", hidden: !hasKnockout },
     { id: "statistics", label: "Statistics" },
-    { id: "media", label: "Media" },
+    { id: "media", label: "OBS Overlay" },
     { id: "settings", label: "Settings" }
   ];
 

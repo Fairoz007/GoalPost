@@ -1,85 +1,23 @@
-"use client";
+'use client'
+import { useMemo, useState } from 'react'
+import { useQuery } from 'convex/react'
+import { api } from '@/convex/_generated/api'
+import { Search, SlidersHorizontal, Trophy } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { TournamentCard, type TournamentCardData } from '@/components/arena/tournament-card'
+import { cn } from '@/lib/utils'
 
-import Link from "next/link";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Trophy, Calendar, Users, Activity } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-
+const filters = ['All', 'eFootball', 'VALORANT', 'Live', 'Registration Open'] as const
 export default function TournamentsPage() {
-  const tournaments = useQuery(api.tournaments.get);
-
-  return (
-    <div className="container mx-auto max-w-5xl py-12 px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between mb-12">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Tournaments</h1>
-          <p className="text-muted-foreground mt-2">
-            Browse all our eFootball tournaments, view standings, and track fixtures.
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {tournaments === undefined ? (
-          // Loading skeletons
-          Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-6 h-[200px] animate-pulse">
-              <div className="h-6 bg-secondary/50 rounded w-3/4 mb-4"></div>
-              <div className="h-4 bg-secondary/50 rounded w-1/2"></div>
-              <div className="h-4 bg-secondary/50 rounded w-2/3 mt-auto"></div>
-            </div>
-          ))
-        ) : tournaments.length === 0 ? (
-          <div className="col-span-full rounded-xl border border-dashed border-border/50 bg-card/30 p-12 text-center text-muted-foreground">
-            <Trophy className="mx-auto h-12 w-12 opacity-20 mb-4" />
-            <p>No tournaments have been created yet.</p>
-          </div>
-        ) : (
-          tournaments.map((t) => (
-            <Link
-              key={t._id}
-              href={`/tournaments/${t._id}`}
-              className="group flex flex-col justify-between rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-[0_0_15px_rgba(0,210,106,0.15)] relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-primary/10"></div>
-              
-              <div className="relative z-10">
-                <div className="flex w-full justify-between items-start mb-4">
-                  <Badge variant={t.status === "Live" || t.status === "Ongoing" ? "default" : "secondary"} className="mb-2">
-                    {t.status}
-                  </Badge>
-                </div>
-                
-                <h3 className="font-semibold text-xl mb-2 line-clamp-2">{t.name}</h3>
-                
-                {t.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                    {t.description}
-                  </p>
-                )}
-              </div>
-
-              <div className="relative z-10 mt-6 pt-4 border-t border-border/50 flex flex-col gap-2">
-                <div className="flex items-center text-xs text-muted-foreground">
-                  <Activity className="mr-2 h-3 w-3" />
-                  <span className="font-medium">{t.format}</span>
-                </div>
-                <div className="flex items-center text-xs text-muted-foreground">
-                  <Calendar className="mr-2 h-3 w-3" />
-                  <span>
-                    {new Date(t.startDate).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))
-        )}
-      </div>
-    </div>
-  );
+  const data = useQuery(api.tournaments.getDiscovery); const [filter, setFilter] = useState<(typeof filters)[number]>('All'); const [search, setSearch] = useState('')
+  const tournaments = useMemo(() => ((data?.tournaments ?? []) as TournamentCardData[]).filter((t) => {
+    const queryMatches = t.name.toLowerCase().includes(search.toLowerCase())
+    if (!queryMatches) return false
+    if (filter === 'eFootball') return (t.gameId ?? 'efootball') === 'efootball'
+    if (filter === 'VALORANT') return t.gameId === 'valorant'
+    if (filter === 'Live') return t.status === 'Ongoing'
+    if (filter === 'Registration Open') return t.status === 'Registration Open'
+    return true
+  }), [data, filter, search])
+  return <div className="mx-auto min-h-[70vh] max-w-7xl px-4 py-14 sm:px-6"><div className="grid gap-8 border-b border-border pb-10 lg:grid-cols-[1fr_auto] lg:items-end"><div><p className="text-xs font-bold uppercase tracking-[.24em] text-primary">Tournament directory</p><h1 className="mt-3 font-display text-5xl font-bold uppercase sm:text-7xl">Find your next fight</h1><p className="mt-4 max-w-2xl text-muted-foreground">Live brackets, open registrations, and upcoming events across every DoneArena game.</p></div><div className="relative w-full lg:w-80"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tournaments" className="pl-9" /></div></div><div className="my-8 flex items-center gap-3 overflow-x-auto pb-2"><SlidersHorizontal className="mr-1 size-4 shrink-0 text-muted-foreground" />{filters.map((item) => <button key={item} onClick={() => setFilter(item)} className={cn('shrink-0 rounded-full border px-4 py-2 text-xs font-semibold transition', filter === item ? 'border-primary bg-primary text-white' : 'border-border text-muted-foreground hover:text-white')}>{item}</button>)}</div>{data === undefined ? <div className="grid gap-5 md:grid-cols-2"><div className="h-72 animate-pulse rounded-2xl bg-card" /><div className="h-72 animate-pulse rounded-2xl bg-card" /></div> : tournaments.length ? <div className="grid gap-5 md:grid-cols-2">{tournaments.map((t) => <TournamentCard key={t._id} tournament={t} />)}</div> : <div className="rounded-2xl border border-dashed border-border py-20 text-center"><Trophy className="mx-auto size-9 text-muted-foreground" /><h2 className="mt-4 font-display text-2xl font-bold uppercase">No tournaments found</h2><p className="mt-2 text-sm text-muted-foreground">Try a different game, status, or search.</p></div>}</div>
 }

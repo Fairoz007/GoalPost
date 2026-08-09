@@ -127,6 +127,8 @@ export default function TournamentLayout({ children }: { children: React.ReactNo
         type={tournament.format}
         status={tournament.status}
         startDate={tournament.startDate}
+        publicHref={tournament.slug ? `/tournament/${tournament.slug}` : `/tournaments/${tournamentId}`}
+        gameName={tournament.gameId === "valorant" ? "VALORANT" : "eFootball"}
       />
 
       <TournamentTabs 

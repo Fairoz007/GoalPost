@@ -15,11 +15,13 @@ interface GroupDetailsProps {
   matches: any[];
   onGenerateMatches: (groupId: Id<"groups">) => void;
   onUpdateScore: (matchId: Id<"matches">, p1s: number, p2s: number) => void;
+  gameId?: "efootball" | "valorant";
+  onUpdateStats?: (matchId: Id<"matches">, participantId: Id<"participants">, values: { roundsWon?: number; kills?: number; acs?: number; goals?: number; possession?: number; shots?: number; cards?: number }) => Promise<unknown> | void;
   onRemoveGroup?: (groupId: Id<"groups">) => void;
   onAssignParticipant?: (participantId: Id<"participants">, groupId: Id<"groups"> | undefined) => void;
 }
 
-export function GroupDetails({ group, participants, matches, onGenerateMatches, onUpdateScore, onRemoveGroup, onAssignParticipant }: GroupDetailsProps) {
+export function GroupDetails({ group, participants, matches, onGenerateMatches, onUpdateScore, gameId, onUpdateStats, onRemoveGroup, onAssignParticipant }: GroupDetailsProps) {
   if (!group) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-border/50 bg-card/50 min-h-[600px] p-8 text-center glass">
@@ -68,7 +70,7 @@ export function GroupDetails({ group, participants, matches, onGenerateMatches, 
         <div className="flex items-center gap-2">
           {unassignedParticipants.length > 0 && (
             <div className="w-48">
-              <Select onValueChange={(val: Id<"participants">) => onAssignParticipant && onAssignParticipant(val, group._id)}>
+              <Select onValueChange={(val) => val && onAssignParticipant?.(val as Id<"participants">, group._id)}>
                 <SelectTrigger className="h-9 border-border/50 bg-secondary/50">
                   <SelectValue placeholder="Add Team" />
                 </SelectTrigger>
@@ -116,6 +118,8 @@ export function GroupDetails({ group, participants, matches, onGenerateMatches, 
         <FixturesTable 
           matches={groupMatches} 
           participants={participants} 
+          gameId={gameId}
+          onUpdateStats={onUpdateStats}
           onUpdateScore={onUpdateScore} 
         />
       </div>

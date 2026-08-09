@@ -1,28 +1,5 @@
 import { cn } from '@/lib/utils'
 
 export function Logo({ className, showText = true }: { className?: string; showText?: boolean }) {
-  return (
-    <span className={cn('flex items-center gap-2', className)}>
-      <span className="relative flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-        <svg viewBox="0 0 24 24" fill="none" className="size-5" aria-hidden>
-          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
-          <path
-            d="M12 7.5l3.2 2.3-1.2 3.8h-4L8.8 9.8 12 7.5z"
-            fill="currentColor"
-          />
-          <path
-            d="M12 3v4.5M4.3 9.8l3.7 1.5M6.5 18l2.5-3.4M17.5 18L15 14.6M19.7 9.8L16 11.3"
-            stroke="currentColor"
-            strokeWidth="1.2"
-            strokeLinecap="round"
-          />
-        </svg>
-      </span>
-      {showText ? (
-        <span className="font-display text-lg font-bold tracking-tight">
-          Goal<span className="text-primary">Post</span>
-        </span>
-      ) : null}
-    </span>
-  )
+  return <span className={cn('flex items-center gap-2.5', className)}><span className="relative flex size-9 -skew-x-6 items-center justify-center overflow-hidden rounded-md bg-primary text-primary-foreground shadow-[0_0_20px_rgba(239,35,60,.22)]"><svg viewBox="0 0 32 32" fill="none" className="size-6 skew-x-6" aria-hidden><path d="M7 5h9c7 0 11 4 11 11S23 27 16 27H7V5Z" stroke="currentColor" strokeWidth="3" /><path d="M13 11h3c3 0 5 2 5 5s-2 5-5 5h-3V11Z" fill="currentColor" /></svg></span>{showText ? <span className="leading-none"><span className="block font-display text-lg font-bold tracking-[.08em]">DONE<span className="text-primary">ARENA</span></span><span className="mt-0.5 block text-[8px] font-semibold uppercase tracking-[.28em] text-muted-foreground">by DoneStudio</span></span> : null}</span>
 }

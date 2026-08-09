@@ -25,13 +25,19 @@ export default function SettingsPage() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<"Upcoming" | "Ongoing" | "Completed">("Upcoming");
+  const [status, setStatus] = useState<"Draft" | "Upcoming" | "Registration Open" | "Ongoing" | "Completed" | "Cancelled">("Upcoming");
+  const [prizePool, setPrizePool] = useState("");
+  const [registrationGroupUrl, setRegistrationGroupUrl] = useState("");
+  const [registrationInstructions, setRegistrationInstructions] = useState("");
 
   useEffect(() => {
     if (tournament) {
       setName(tournament.name);
       setDescription(tournament.description || "");
       setStatus(tournament.status as any);
+      setPrizePool(tournament.prizePool || "");
+      setRegistrationGroupUrl(tournament.registrationGroupUrl || "");
+      setRegistrationInstructions(tournament.registrationInstructions || "");
     }
   }, [tournament]);
 
@@ -46,6 +52,9 @@ export default function SettingsPage() {
       name,
       description,
       status,
+      prizePool,
+      registrationGroupUrl,
+      registrationInstructions,
     });
     alert("Settings saved successfully.");
   };
@@ -100,11 +109,29 @@ export default function SettingsPage() {
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="Draft">Draft</SelectItem>
                 <SelectItem value="Upcoming">Upcoming</SelectItem>
+                <SelectItem value="Registration Open">Registration Open</SelectItem>
                 <SelectItem value="Ongoing">Ongoing</SelectItem>
                 <SelectItem value="Completed">Completed</SelectItem>
+                <SelectItem value="Cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="prizePool">Prize Pool (Optional)</Label>
+            <Input id="prizePool" value={prizePool} onChange={(e) => setPrizePool(e.target.value)} placeholder="₹25,000 or Trophy" className="bg-secondary/30" />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="registrationGroupUrl">Registration Group / Contact URL (Optional)</Label>
+            <Input id="registrationGroupUrl" type="url" value={registrationGroupUrl} onChange={(e) => setRegistrationGroupUrl(e.target.value)} placeholder="https://chat.whatsapp.com/…" className="bg-secondary/30" />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="registrationInstructions">Registration Instructions (Optional)</Label>
+            <Textarea id="registrationInstructions" value={registrationInstructions} onChange={(e) => setRegistrationInstructions(e.target.value)} placeholder="Join the group after submitting and contact the organizer." className="bg-secondary/30 min-h-[90px]" />
           </div>
 
           <div className="flex justify-end pt-4">

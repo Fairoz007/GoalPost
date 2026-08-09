@@ -54,39 +54,39 @@
 
 :root {
   color-scheme: dark;
-  --background: #070B17;
+  --background: #070707;
   --foreground: #ffffff;
-  --card: #101826;
+  --card: #111111;
   --card-foreground: #ffffff;
-  --popover: #101826;
+  --popover: #111111;
   --popover-foreground: #ffffff;
-  --primary: #00D26A;
-  --primary-foreground: #04140a;
-  --secondary: #151F2E;
+  --primary: #ef233c;
+  --primary-foreground: #ffffff;
+  --secondary: #181818;
   --secondary-foreground: #ffffff;
-  --muted: #151F2E;
-  --muted-foreground: #94A3B8;
-  --accent: #38BDF8;
-  --accent-foreground: #070B17;
+  --muted: #181818;
+  --muted-foreground: #929292;
+  --accent: #ff4655;
+  --accent-foreground: #ffffff;
   --destructive: #EF4444;
   --live: #EF4444;
   --border: rgba(255, 255, 255, 0.06);
   --input: rgba(255, 255, 255, 0.06);
-  --ring: #00D26A;
-  --chart-1: #00D26A;
+  --ring: #ef233c;
+  --chart-1: #ef233c;
   --chart-2: #F59E0B;
   --chart-3: #38BDF8;
   --chart-4: #a78bfa;
   --chart-5: #EF4444;
   --radius: 0.75rem;
-  --sidebar: #070B17;
+  --sidebar: #0a0a0a;
   --sidebar-foreground: #ffffff;
-  --sidebar-primary: #00D26A;
-  --sidebar-primary-foreground: #04140a;
-  --sidebar-accent: #151F2E;
+  --sidebar-primary: #ef233c;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #181818;
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgba(255, 255, 255, 0.06);
-  --sidebar-ring: #00D26A;
+  --sidebar-ring: #ef233c;
 }
 
 @layer base {
@@ -96,6 +96,7 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: 'ss01', 'cv01';
+    background-image: radial-gradient(circle at 75% -10%, rgba(239, 35, 60, 0.10), transparent 32%);
   }
 }
 
@@ -125,12 +126,12 @@
 @layer utilities {
   .field-grid {
     background-image:
-      linear-gradient(rgba(0, 200, 83, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 200, 83, 0.06) 1px, transparent 1px);
+      linear-gradient(rgba(239, 35, 60, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(239, 35, 60, 0.05) 1px, transparent 1px);
     background-size: 40px 40px;
   }
   .text-glow {
-    text-shadow: 0 0 24px rgba(0, 200, 83, 0.45);
+    text-shadow: 0 0 28px rgba(239, 35, 60, 0.42);
   }
   .live-pulse {
     animation: live-pulse 1.6s ease-in-out infinite;

@@ -1,171 +1,32 @@
-"use client";
+'use client'
+import { FormEvent, useState } from 'react'
+import { useMutation } from 'convex/react'
+import { api } from '@/convex/_generated/api'
+import { useRouter } from 'next/navigation'
+import { ArrowLeft, ArrowRight, Check, Crosshair, Gamepad2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { gameModules, type GameId } from '@/lib/game-modules'
+import { cn } from '@/lib/utils'
 
-import { useState } from "react";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Copy, CheckCircle2 } from "lucide-react";
-import Link from "next/link";
-import { motion } from "framer-motion";
+const steps = ['Info', 'Game', 'Format', 'Participants', 'Rules', 'Schedule']
+type FormState = { name: string; slug: string; description: string; organizer: string; gameId: GameId; format: string; maxSlots: number; prizePool: string; registrationGroupUrl: string; registrationInstructions: string; rules: string; startDate: string; endDate: string; adminCode: string }
+const initial: FormState = { name: '', slug: '', description: '', organizer: 'DoneStudio', gameId: 'efootball', format: 'Groups + Knockout', maxSlots: 16, prizePool: '', registrationGroupUrl: '', registrationInstructions: '', rules: '', startDate: '', endDate: '', adminCode: '' }
 
 export default function CreateTournamentPage() {
-  const router = useRouter();
-  const createTournament = useMutation(api.tournaments.create);
-  
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [format, setFormat] = useState<"Knockout" | "League" | "Groups" | "Single Group + Finals">("Single Group + Finals");
-  
-  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
-  const [createdId, setCreatedId] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !startDate || !format) return;
-
-    const adminCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-
-    try {
-      const id = await createTournament({
-        name,
-        description,
-        startDate,
-        format,
-        status: "Upcoming",
-        adminCode,
-      });
-      
-      // Save it locally automatically so the creator doesn't need to login
-      localStorage.setItem(`admin_code_${id}`, adminCode);
-      
-      setGeneratedCode(adminCode);
-      setCreatedId(id);
-    } catch (error) {
-      console.error("Failed to create tournament", error);
-    }
-  };
-
-  const handleCopy = () => {
-    if (generatedCode) {
-      navigator.clipboard.writeText(generatedCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  if (generatedCode && createdId) {
-    return (
-      <div className="mx-auto max-w-2xl mt-12">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="rounded-xl border border-primary/50 bg-card p-8 text-center shadow-[0_0_30px_rgba(0,210,106,0.15)]"
-        >
-          <div className="mx-auto w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mb-6">
-            <CheckCircle2 className="w-8 h-8 text-primary" />
-          </div>
-          <h2 className="text-3xl font-display font-bold mb-4">Tournament Created!</h2>
-          <p className="text-muted-foreground mb-8">
-            Your tournament has been created successfully. Below is your unique Admin Passcode. 
-            <strong className="block mt-2 text-foreground">Save this code! You will need it to manage your tournament from other devices.</strong>
-          </p>
-          
-          <div className="bg-secondary/50 border border-border rounded-lg p-6 mb-8 max-w-md mx-auto flex items-center justify-between">
-            <span className="font-mono text-4xl tracking-widest font-black text-primary select-all">
-              {generatedCode}
-            </span>
-            <Button size="icon" variant="outline" onClick={handleCopy}>
-              {copied ? <CheckCircle2 className="w-5 h-5 text-primary" /> : <Copy className="w-5 h-5" />}
-            </Button>
-          </div>
-
-          <Button 
-            size="lg" 
-            className="w-full max-w-md"
-            onClick={() => router.push(`/dashboard/tournaments/${createdId}`)}
-          >
-            Go to Tournament Dashboard
-          </Button>
-        </motion.div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/dashboard/tournaments" className="rounded-full p-2 hover:bg-accent">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <h1 className="font-display text-3xl font-bold">Create Tournament</h1>
-      </div>
-
-      <div className="rounded-xl border border-border bg-card p-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="name">Tournament Name</Label>
-            <Input
-              id="name"
-              placeholder="e.g. Premier Champions League"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Description (Optional)</Label>
-            <Textarea
-              id="description"
-              placeholder="A short description of the tournament..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="format">Format</Label>
-              <Select value={format} onValueChange={(val: any) => setFormat(val)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select format" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Single Group + Finals">Single Group (Top 2 to Finals)</SelectItem>
-                  <SelectItem value="Knockout">Knockout Bracket</SelectItem>
-                  <SelectItem value="League">League (Round Robin)</SelectItem>
-                  <SelectItem value="Groups">Group Stage + Knockout</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-4 pt-4">
-            <Button type="button" variant="outline" onClick={() => router.back()}>
-              Cancel
-            </Button>
-            <Button type="submit">Create Tournament</Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+  const [step, setStep] = useState(0); const [form, setForm] = useState(initial); const [error, setError] = useState(''); const create = useMutation(api.tournaments.create); const router = useRouter(); const module = gameModules[form.gameId]
+  const update = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((state) => ({ ...state, [key]: value }))
+  const finish = async (event: FormEvent) => { event.preventDefault(); setError(''); try { const id = await create({ name: form.name, slug: form.slug || form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''), description: form.description || undefined, organizer: form.organizer, gameId: form.gameId, format: form.format as any, maxSlots: form.maxSlots, teamSize: module.teamSize, prizePool: form.prizePool || undefined, registrationGroupUrl: form.registrationGroupUrl || undefined, registrationInstructions: form.registrationInstructions || undefined, rules: form.rules || undefined, startDate: new Date(form.startDate).toISOString(), endDate: form.endDate ? new Date(form.endDate).toISOString() : undefined, status: 'Draft', currentStage: 'Registration', adminCode: form.adminCode || undefined }); router.push(`/dashboard/tournaments/${id}`) } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not create tournament.') } }
+  return <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6"><div className="flex items-end justify-between border-b border-border pb-8"><div><p className="text-xs font-bold uppercase tracking-[.22em] text-primary">Organizer wizard</p><h1 className="mt-2 font-display text-4xl font-bold uppercase">Create a tournament</h1></div><span className="font-mono text-xs text-muted-foreground">{step + 1}/{steps.length}</span></div><div className="mt-6 flex gap-2 overflow-x-auto">{steps.map((item, index) => <button key={item} type="button" onClick={() => index < step && setStep(index)} className={cn('flex min-w-28 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold', index === step ? 'border-primary bg-primary/10 text-white' : index < step ? 'border-primary/30 text-primary' : 'border-border text-muted-foreground')}><span className="flex size-5 items-center justify-center rounded-full border border-current">{index < step ? <Check className="size-3" /> : index + 1}</span>{item}</button>)}</div><form onSubmit={finish} className="mt-8 rounded-2xl border border-border bg-card p-6 sm:p-8"><div className="min-h-[360px]">
+    {step === 0 && <Panel title="Tournament identity" copy="Give competitors a clear reason to enter."><Field label="Tournament name"><Input value={form.name} onChange={(e) => { update('name', e.target.value); if (!form.slug) update('slug', e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')) }} required /></Field><div className="grid gap-5 sm:grid-cols-2"><Field label="Public URL"><Input value={form.slug} onChange={(e) => update('slug', e.target.value)} placeholder="summer-showdown" /></Field><Field label="Organizer"><Input value={form.organizer} onChange={(e) => update('organizer', e.target.value)} required /></Field></div><Field label="Description"><Textarea value={form.description} onChange={(e) => update('description', e.target.value)} rows={4} /></Field></Panel>}
+    {step === 1 && <Panel title="Choose the game" copy="The game module configures competitors, formats, and statistics."><div className="grid gap-4 sm:grid-cols-2">{([{ id: 'efootball', Icon: Gamepad2 }, { id: 'valorant', Icon: Crosshair }] as const).map((game) => { const config = gameModules[game.id]; return <button type="button" key={game.id} onClick={() => { update('gameId', game.id); update('format', config.formats[0]); update('maxSlots', game.id === 'valorant' ? 8 : 16) }} className={cn('rounded-xl border p-6 text-left transition', form.gameId === game.id ? 'border-primary bg-primary/5' : 'border-border hover:border-white/20')}><game.Icon className="size-8 text-primary" /><h3 className="mt-10 font-display text-3xl font-bold">{config.name}</h3><p className="mt-2 text-sm text-muted-foreground">{config.teamSize}v{config.teamSize} · {config.competitorLabel} registration</p></button>})}</div></Panel>}
+    {step === 2 && <Panel title="Competition format" copy={`Formats supported by the ${module.name} module.`}><div className="grid gap-3 sm:grid-cols-2">{module.formats.map((format) => <button type="button" key={format} onClick={() => update('format', format)} className={cn('rounded-xl border p-4 text-left font-semibold', form.format === format ? 'border-primary bg-primary/5 text-white' : 'border-border text-muted-foreground')}>{format}</button>)}</div></Panel>}
+    {step === 3 && <Panel title="Participant settings" copy={`Each registration represents one ${module.competitorLabel.toLowerCase()}${module.teamSize > 1 ? ` with ${module.teamSize} starters` : ''}.`}><div className="grid gap-5 sm:grid-cols-2"><Field label="Maximum slots"><Input type="number" min={2} max={128} value={form.maxSlots} onChange={(e) => update('maxSlots', Number(e.target.value))} /></Field><Field label="Prize pool (optional)"><Input value={form.prizePool} onChange={(e) => update('prizePool', e.target.value)} placeholder="₹25,000 or Trophy" /></Field></div><div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-5"><p className="font-semibold text-white">Free, account-free registration</p><p className="mt-1 text-sm text-muted-foreground">Public applicants provide email and phone details. Registrations remain pending until you approve them.</p></div></Panel>}
+    {step === 4 && <Panel title="Rules and registration" copy="Give applicants the group or contact channel used to complete registration."><Field label="Registration group/contact URL (optional)"><Input type="url" value={form.registrationGroupUrl} onChange={(e) => update('registrationGroupUrl', e.target.value)} placeholder="https://chat.whatsapp.com/…" /></Field><Field label="Registration instructions (optional)"><Textarea value={form.registrationInstructions} onChange={(e) => update('registrationInstructions', e.target.value)} rows={3} placeholder="Join the group after submitting and message the organizer with your team name." /></Field><Field label="Tournament rules"><Textarea value={form.rules} onChange={(e) => update('rules', e.target.value)} rows={7} placeholder="Eligibility, check-in window, result reporting, dispute policy…" /></Field><Field label="Organizer passcode (optional)"><Input value={form.adminCode} onChange={(e) => update('adminCode', e.target.value.toUpperCase())} placeholder="ARENA24" /></Field></Panel>}
+    {step === 5 && <Panel title="Schedule" copy="Set the event window. Detailed fixtures can be generated after participants are approved."><div className="grid gap-5 sm:grid-cols-2"><Field label="Starts"><Input type="datetime-local" value={form.startDate} onChange={(e) => update('startDate', e.target.value)} required /></Field><Field label="Ends"><Input type="datetime-local" value={form.endDate} onChange={(e) => update('endDate', e.target.value)} /></Field></div><div className="mt-7 rounded-xl border border-primary/20 bg-primary/5 p-5"><p className="font-semibold">Ready to create {form.name || 'your tournament'}?</p><p className="mt-1 text-sm text-muted-foreground">It will be saved as a draft. Open registration when artwork, rules, and schedule are final.</p></div></Panel>}
+  </div>{error && <p className="mt-4 text-sm text-red-400">{error}</p>}<div className="mt-8 flex justify-between border-t border-border pt-6"><Button type="button" variant="outline" disabled={step === 0} onClick={() => setStep((value) => value - 1)}><ArrowLeft className="size-4" />Back</Button>{step < steps.length - 1 ? <Button type="button" onClick={() => setStep((value) => value + 1)} disabled={step === 0 && !form.name}>Continue<ArrowRight className="size-4" /></Button> : <Button type="submit">Create tournament<Check className="size-4" /></Button>}</div></form></div>
 }
+function Panel({ title, copy, children }: { title: string; copy: string; children: React.ReactNode }) { return <div><h2 className="font-display text-3xl font-bold uppercase">{title}</h2><p className="mt-2 text-sm text-muted-foreground">{copy}</p><div className="mt-7 space-y-5">{children}</div></div> }
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <div className="space-y-2"><Label>{label}</Label>{children}</div> }

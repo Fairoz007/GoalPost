@@ -1,87 +1,18 @@
-"use client";
-
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { useParams } from "next/navigation";
-import { Id } from "@/convex/_generated/dataModel";
-import { motion } from "framer-motion";
-import { FixturesTable } from "@/components/dashboard/tournament/fixtures-table";
+'use client'
+import { useMutation, useQuery } from 'convex/react'
+import { api } from '@/convex/_generated/api'
+import { useParams } from 'next/navigation'
+import type { Id } from '@/convex/_generated/dataModel'
+import { CalendarPlus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { FixturesTable } from '@/components/dashboard/tournament/fixtures-table'
 
 export default function FixturesPage() {
-  const params = useParams();
-  const tournamentId = params.id as Id<"tournaments">;
-  const isInvalidId = !tournamentId || tournamentId === "undefined";
-  
-  const tournament = useQuery(api.tournaments.getById, isInvalidId ? "skip" : { id: tournamentId });
-  const participants = useQuery(api.participants.getByTournament, isInvalidId ? "skip" : { tournamentId });
-  const matches = useQuery(api.matches.getByTournament, isInvalidId ? "skip" : { tournamentId });
-  
-  const updateScore = useMutation(api.matches.updateScore);
-  const generateMatches = useMutation(api.matches.generateGroupMatches);
-
-  if (tournament === undefined || participants === undefined || matches === undefined) {
-    return <div className="animate-pulse space-y-4">
-      <div className="h-64 bg-secondary/50 rounded-2xl w-full"></div>
-    </div>;
-  }
-
-  const handleGenerateMatches = async () => {
-    if (participants.length < 2) {
-      alert("You need at least 2 participants to generate matches.");
-      return;
-    }
-    await generateMatches({ tournamentId });
-  };
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
-    >
-      <div className="rounded-2xl border border-border bg-card shadow-sm p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-display font-semibold text-white flex items-center gap-2">
-            Tournament Fixtures
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-xs text-primary font-bold">
-              {matches.length}
-            </span>
-          </h3>
-          
-          {matches.length === 0 && tournament.format === "Single Group + Finals" && (
-            <button 
-              onClick={handleGenerateMatches}
-              className="bg-primary text-black font-semibold px-4 py-2 rounded-lg hover:bg-primary/90 transition shadow-[0_0_15px_rgba(0,210,106,0.2)]"
-            >
-              Generate All Matches
-            </button>
-          )}
-        </div>
-
-        {matches.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-4">
-            <p>No fixtures have been generated yet.</p>
-            {tournament.format === "Single Group + Finals" ? (
-              <button 
-                onClick={handleGenerateMatches}
-                className="bg-primary text-black font-semibold px-6 py-2 rounded-lg hover:bg-primary/90 transition mt-2 shadow-[0_0_15px_rgba(0,210,106,0.2)]"
-              >
-                Generate Round Robin Schedule
-              </button>
-            ) : (
-              <p>Go to the Groups tab to generate matches for each group!</p>
-            )}
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-xl border border-border/50 bg-background/50">
-            <FixturesTable 
-              matches={matches}
-              participants={participants}
-              onUpdateScore={(matchId, p1s, p2s) => updateScore({ matchId, player1Score: p1s, player2Score: p2s })}
-            />
-          </div>
-        )}
-      </div>
-    </motion.div>
-  );
+  const params = useParams<{ id: string }>(); const tournamentId = params.id as Id<'tournaments'>
+  const tournament = useQuery(api.tournaments.getById, { id: tournamentId }); const participants = useQuery(api.participants.getByTournament, { tournamentId }); const matches = useQuery(api.matches.getByTournament, { tournamentId })
+  const generate = useMutation(api.matches.generateTournament); const updateScore = useMutation(api.matches.updateScore); const upsertStats = useMutation(api.matches.upsertStats)
+  if (tournament === undefined || participants === undefined || matches === undefined) return <div className="h-80 animate-pulse rounded-2xl bg-card" />
+  if (!tournament) return <div className="p-10 text-center">Tournament not found.</div>
+  const gameId = tournament.gameId === 'valorant' ? 'valorant' : 'efootball'
+  return <div className="space-y-6"><div className="flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-6 sm:flex-row sm:items-center"><div><p className="text-xs font-bold uppercase tracking-wider text-primary">{gameId === 'valorant' ? 'VALORANT' : 'eFootball'} schedule engine</p><h1 className="mt-1 font-display text-2xl font-bold uppercase">Fixtures</h1><p className="text-sm text-muted-foreground">{tournament.format} · {matches.length} matches generated</p></div>{matches.length === 0 && <Button onClick={() => generate({ tournamentId })}><CalendarPlus className="size-4" />Generate {tournament.format}</Button>}</div><FixturesTable matches={matches} participants={participants} gameId={gameId} onUpdateScore={(matchId, player1Score, player2Score) => updateScore({ matchId, player1Score, player2Score })} onUpdateStats={(matchId, participantId, values) => upsertStats({ matchId, participantId, gameId, ...values })} /></div>
 }

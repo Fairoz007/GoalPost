@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as arena from "../arena.js";
+import type * as gameModules from "../gameModules.js";
 import type * as groups from "../groups.js";
 import type * as matches from "../matches.js";
 import type * as participants from "../participants.js";
@@ -20,6 +22,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  arena: typeof arena;
+  gameModules: typeof gameModules;
   groups: typeof groups;
   matches: typeof matches;
   participants: typeof participants;

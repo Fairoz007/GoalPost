@@ -1,18 +1,7 @@
-"use client";
-
-import { motion } from "framer-motion";
-
-export default function StatisticsPage() {
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="py-12 text-center text-muted-foreground bg-card/30 rounded-2xl border border-border/50"
-    >
-      <div className="flex flex-col items-center justify-center p-12">
-        <h2 className="text-2xl font-display font-semibold text-white mb-2">Statistics Module</h2>
-        <p>Top scorers, clean sheets, and analytics will be implemented here.</p>
-      </div>
-    </motion.div>
-  );
-}
+'use client'
+import { useQuery } from 'convex/react'
+import { api } from '@/convex/_generated/api'
+import { useParams } from 'next/navigation'
+import type { Id } from '@/convex/_generated/dataModel'
+import { BarChart3, Crosshair, Goal, Swords, Trophy } from 'lucide-react'
+export default function StatisticsPage() { const params = useParams<{ id: string }>(); const tournamentId = params.id as Id<'tournaments'>; const stats = useQuery(api.matches.getStatistics, { tournamentId }); if (stats === undefined) return <div className="h-80 animate-pulse rounded-2xl bg-card" />; const valorant = stats.gameId === 'valorant'; const cards = valorant ? [{ label: 'Maps played', value: stats.totals.maps, Icon: Swords }, { label: 'Rounds won', value: stats.totals.rounds, Icon: Trophy }, { label: 'Recorded kills', value: stats.totals.kills, Icon: Crosshair }] : [{ label: 'Goals', value: stats.totals.goals, Icon: Goal }, { label: 'Shots', value: stats.totals.shots, Icon: Crosshair }, { label: 'Cards', value: stats.totals.cards, Icon: Trophy }]; return <div className="space-y-6"><div><p className="text-xs font-bold uppercase tracking-wider text-primary">Convex live statistics</p><h1 className="mt-2 font-display text-3xl font-bold uppercase">{valorant ? 'VALORANT performance' : 'eFootball performance'}</h1></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><div className="rounded-xl border border-border bg-card p-5"><BarChart3 className="size-5 text-primary" /><p className="mt-6 font-display text-4xl font-bold">{stats.completedMatches}</p><p className="text-xs uppercase text-muted-foreground">Completed matches</p></div>{cards.map((card) => <div key={card.label} className="rounded-xl border border-border bg-card p-5"><card.Icon className="size-5 text-primary" /><p className="mt-6 font-display text-4xl font-bold">{card.value}</p><p className="text-xs uppercase text-muted-foreground">{card.label}</p></div>)}</div><div className="rounded-xl border border-border bg-card p-6"><h2 className="font-display text-xl font-bold uppercase">{valorant ? 'Kill leaders' : 'Top scorers'}</h2><div className="mt-5 space-y-2">{stats.leaders.map((leader, index) => <div key={leader.participantId} className="grid grid-cols-[40px_1fr_auto] items-center rounded-lg border border-border bg-background px-4 py-3"><span className="font-mono text-muted-foreground">{index + 1}</span><span className="font-semibold">{leader.name}</span><span className="font-display text-xl font-bold text-primary">{valorant ? `${leader.kills} K · ${leader.averageAcs} ACS` : `${leader.goals} goals`}</span></div>)}{stats.leaders.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">Statistics will populate as match data is entered.</p>}</div></div></div> }

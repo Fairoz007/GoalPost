@@ -14,10 +14,11 @@ export default function OverviewPage() {
   const isInvalidId = !tournamentId || tournamentId === "undefined";
   
   const participants = useQuery(api.participants.getByTournament, isInvalidId ? "skip" : { tournamentId });
+  const tournament = useQuery(api.tournaments.getById, isInvalidId ? "skip" : { id: tournamentId });
   const groups = useQuery(api.groups.getByTournament, isInvalidId ? "skip" : { tournamentId });
   const matches = useQuery(api.matches.getByTournament, isInvalidId ? "skip" : { tournamentId });
 
-  if (participants === undefined || groups === undefined || matches === undefined) {
+  if (tournament === undefined || participants === undefined || groups === undefined || matches === undefined) {
     return <div className="animate-pulse space-y-4">
       <div className="h-32 bg-secondary/50 rounded-2xl w-full"></div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -25,6 +26,9 @@ export default function OverviewPage() {
       </div>
     </div>;
   }
+
+  if (!tournament) return <div className="p-10 text-center text-muted-foreground">Tournament not found.</div>;
+  const competitorLabel = tournament.gameId === "valorant" ? "Teams" : "Players";
 
   const completedMatches = matches.filter(m => m.status === "Completed").length;
 
@@ -37,7 +41,7 @@ export default function OverviewPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-secondary/20 border-border/50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Teams</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total {competitorLabel}</CardTitle>
             <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>

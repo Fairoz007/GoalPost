@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Bell, Settings, Trophy } from "lucide-react";
+import { ArrowLeft, Bell, ExternalLink, Settings, Trophy } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,11 @@ interface TournamentHeaderProps {
   type: string;
   status: string;
   startDate: string;
+  publicHref: string;
+  gameName: string;
 }
 
-export function TournamentHeader({ name, type, status, startDate }: TournamentHeaderProps) {
+export function TournamentHeader({ name, type, status, startDate, publicHref, gameName }: TournamentHeaderProps) {
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-border bg-card/50 px-6 py-4 backdrop-blur-md sticky top-0 z-10">
       <div className="flex items-center gap-4">
@@ -33,6 +35,8 @@ export function TournamentHeader({ name, type, status, startDate }: TournamentHe
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground flex items-center gap-2 mt-0.5">
+            <span>{gameName}</span>
+            <span className="h-1 w-1 rounded-full bg-muted-foreground/50"></span>
             <span>{type}</span>
             <span className="h-1 w-1 rounded-full bg-muted-foreground/50"></span>
             <span>Starts {format(new Date(startDate), "d MMM, yyyy")}</span>
@@ -41,6 +45,12 @@ export function TournamentHeader({ name, type, status, startDate }: TournamentHe
       </div>
       
       <div className="flex items-center gap-3 mt-4 md:mt-0">
+        <Link href={publicHref} target="_blank">
+          <Button variant="outline" className="border-border bg-secondary/30 hover:bg-secondary gap-2 text-sm">
+            <ExternalLink className="h-4 w-4 text-primary" />
+            Public View
+          </Button>
+        </Link>
         <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full hover:bg-secondary/80">
           <Bell className="h-5 w-5 text-muted-foreground" />
           <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_rgba(0,210,106,0.8)]"></span>
