@@ -4,8 +4,8 @@ This repository uses the OpenNext adapter for Cloudflare Workers. The Worker nam
 
 ## Cloudflare Workers Builds settings
 
-- Build command: `npm run cf:build`
-- Deploy command: `npm run cf:deploy`
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy`
 - Root directory: `/`
 - Node.js version: `22` or `24`
 
@@ -39,4 +39,6 @@ After deployment, add `arena.donestudio.in` under **Workers & Pages â†’ arena â†
 
 ## Previous error 10143
 
-The failed deployment was generated with a `WORKER_SELF_REFERENCE` binding targeting a nonexistent Worker named `my-project`. This app does not use ISR or on-demand revalidation, so the repository-owned `wrangler.jsonc` intentionally has no self-service binding. Do not use bare `npx wrangler deploy` as the Cloudflare deploy command; use the OpenNext scripts above.
+The first failed deployment was generated with a `WORKER_SELF_REFERENCE` binding targeting a nonexistent Worker named `my-project`. This app does not use ISR or on-demand revalidation, so the repository-owned `wrangler.jsonc` intentionally has no self-service binding.
+
+The package build runs OpenNext, while `open-next.config.ts` directs the adapter to invoke `next build` internally. This creates both `.next` and the compiled `.open-next` configuration expected by Cloudflare's automatic `npx wrangler deploy` command without causing a recursive package build.
