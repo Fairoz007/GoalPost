@@ -41,6 +41,23 @@ describe("game-aware tournament engine", () => {
     await expect(t.mutation(api.participants.create, { tournamentId, name: "Incomplete Team", gameId: "valorant", captain: "Solo", roster: [{ displayName: "Solo", role: "captain" }] })).rejects.toThrow("exactly 5 starting players");
   });
 
+  test("VALORANT mode rules are stored and copied to generated matches", async () => {
+    const t = convexTest(schema, modules);
+    const tournamentId = await t.mutation(api.tournaments.create, {
+      name: "Escalation Night", slug: "escalation-night", gameId: "valorant",
+      matchMode: "escalation", format: "League", status: "Upcoming",
+      startDate: "2026-08-10T10:00:00.000Z",
+    });
+    await t.mutation(api.participants.create, { tournamentId, name: "Alpha", gameId: "valorant", captain: "Alpha Captain", roster: valorantRoster("Alpha") });
+    await t.mutation(api.participants.create, { tournamentId, name: "Bravo", gameId: "valorant", captain: "Bravo Captain", roster: valorantRoster("Bravo") });
+    await t.mutation(api.matches.generateTournament, { tournamentId });
+    const tournament = await t.query(api.tournaments.getById, { id: tournamentId });
+    const [match] = await t.query(api.matches.getByTournament, { tournamentId });
+    expect(tournament).toMatchObject({ matchMode: "escalation" });
+    expect(tournament?.rules).toContain("weapon levels");
+    expect(match).toMatchObject({ matchMode: "escalation" });
+  });
+
   test("VALORANT validates map scores and ranks by maps and rounds", async () => {
     const t = convexTest(schema, modules);
     const tournamentId = await createTournament(t, "valorant", "League");

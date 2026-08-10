@@ -1,6 +1,6 @@
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { gameId, matchStatus } from "./schema";
+import { gameId, matchStatus, valorantMatchMode } from "./schema";
 import { isKnockoutFormat, isKnockoutMatch, rulesFor, type GameModuleId } from "./gameModules";
 import type { Doc, Id } from "./_generated/dataModel";
 
@@ -78,7 +78,8 @@ async function insertRoundRobin(ctx: MutationCtx, tournament: Doc<"tournaments">
         tournamentId: tournament._id, groupId, gameId: tournament.gameId ?? "efootball",
         player1Id: participants[i]._id, player2Id: participants[j]._id,
         status: "Scheduled", date: tournament.startDate,
-        round: groupId ? "Group Stage" : "League", bestOf: tournament.bestOf ?? rulesFor(tournament.gameId).defaultBestOf,
+        round: groupId ? "Group Stage" : "League", matchMode: tournament.matchMode,
+        bestOf: tournament.bestOf ?? rulesFor(tournament.gameId).defaultBestOf,
       });
       count += 1;
     }
@@ -97,7 +98,7 @@ async function insertBracketRound(ctx: MutationCtx, tournament: Doc<"tournaments
       tournamentId: tournament._id, gameId: tournament.gameId ?? "efootball",
       player1Id: first._id, player2Id: second._id, status: "Scheduled",
       date: tournament.endDate ?? tournament.startDate, round: label,
-      bracketRound, bracketPosition: index, bracketKind: bracketRound === 1 ? "upper" : "lower",
+      bracketRound, bracketPosition: index, bracketKind: bracketRound === 1 ? "upper" : "lower", matchMode: tournament.matchMode,
       bestOf: tournament.bestOf ?? rulesFor(tournament.gameId).defaultBestOf,
     });
   }
@@ -121,7 +122,7 @@ async function insertDoubleEliminationWave(
       player1Id: first._id, player2Id: second._id, status: "Scheduled",
       date: tournament.endDate ?? tournament.startDate,
       round: sorted.length === 2 ? "Grand Final" : `Elimination Round ${bracketRound}`,
-      bracketRound, bracketPosition: created,
+      bracketRound, bracketPosition: created, matchMode: tournament.matchMode,
       bracketKind: sorted.length === 2 ? "grand_final" : firstLosses === 0 && secondLosses === 0 ? "upper" : "lower",
       bestOf: tournament.bestOf ?? rulesFor(tournament.gameId).defaultBestOf,
     });
@@ -260,7 +261,7 @@ export const getOverlayData = query({
 });
 
 export const create = mutation({
-  args: { tournamentId: v.id("tournaments"), groupId: v.optional(v.id("groups")), gameId: v.optional(gameId), player1Id: v.id("participants"), player2Id: v.id("participants"), status: matchStatus, date: v.string(), round: v.optional(v.string()), bracketRound: v.optional(v.number()), bracketPosition: v.optional(v.number()), bracketKind: v.optional(v.union(v.literal("upper"), v.literal("lower"), v.literal("grand_final"))), bestOf: v.optional(v.number()) },
+  args: { tournamentId: v.id("tournaments"), groupId: v.optional(v.id("groups")), gameId: v.optional(gameId), matchMode: v.optional(valorantMatchMode), player1Id: v.id("participants"), player2Id: v.id("participants"), status: matchStatus, date: v.string(), round: v.optional(v.string()), bracketRound: v.optional(v.number()), bracketPosition: v.optional(v.number()), bracketKind: v.optional(v.union(v.literal("upper"), v.literal("lower"), v.literal("grand_final"))), bestOf: v.optional(v.number()) },
   returns: v.id("matches"), handler: async (ctx, args) => await ctx.db.insert("matches", args),
 });
 

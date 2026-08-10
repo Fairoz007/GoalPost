@@ -1,8 +1,8 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { gameId, tournamentFormat, tournamentStatus } from "./schema";
+import { gameId, tournamentFormat, tournamentStatus, valorantMatchMode } from "./schema";
 import type { Doc } from "./_generated/dataModel";
-import { rulesFor } from "./gameModules";
+import { rulesFor, valorantModeRules } from "./gameModules";
 
 const publicTournament = (tournament: Doc<"tournaments">) => {
   const { adminCode, ...rest } = tournament;
@@ -15,6 +15,7 @@ export const create = mutation({
     slug: v.optional(v.string()),
     description: v.optional(v.string()),
     gameId: v.optional(gameId),
+    matchMode: v.optional(valorantMatchMode),
     startDate: v.string(),
     endDate: v.optional(v.string()),
     registrationClosesAt: v.optional(v.string()),
@@ -40,13 +41,17 @@ export const create = mutation({
       if (existing) throw new Error("A tournament with this URL already exists.");
     }
     const selectedGame = args.gameId ?? "efootball";
-    const rules = rulesFor(selectedGame);
-    if (!rules.formats.includes(args.format)) throw new Error(`${args.format} is not supported for ${rules.name}.`);
+    const gameRules = rulesFor(selectedGame);
+    if (!gameRules.formats.includes(args.format)) throw new Error(`${args.format} is not supported for ${gameRules.name}.`);
+    if (selectedGame === "efootball" && args.matchMode) throw new Error("Valorant match modes cannot be used for E-Football tournaments.");
+    const matchMode = selectedGame === "valorant" ? args.matchMode ?? "scrimmage" : undefined;
     return await ctx.db.insert("tournaments", {
       ...args,
       gameId: selectedGame,
-      teamSize: rules.teamSize,
-      bestOf: args.bestOf ?? rules.defaultBestOf,
+      matchMode,
+      rules: args.rules ?? (matchMode ? valorantModeRules(matchMode).rules : undefined),
+      teamSize: gameRules.teamSize,
+      bestOf: args.bestOf ?? gameRules.defaultBestOf,
     });
   },
 });

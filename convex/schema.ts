@@ -2,6 +2,13 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export const gameId = v.union(v.literal("efootball"), v.literal("valorant"));
+export const valorantMatchMode = v.union(
+  v.literal("scrimmage"),
+  v.literal("escalation"),
+  v.literal("unrated_competitive"),
+  v.literal("standard_unrated"),
+  v.literal("deathmatch"),
+);
 export const tournamentStatus = v.union(
   v.literal("Draft"),
   v.literal("Upcoming"),
@@ -34,6 +41,7 @@ export default defineSchema({
     slug: v.optional(v.string()),
     description: v.optional(v.string()),
     gameId: v.optional(gameId),
+    matchMode: v.optional(valorantMatchMode),
     startDate: v.string(),
     endDate: v.optional(v.string()),
     registrationClosesAt: v.optional(v.string()),
@@ -113,6 +121,7 @@ export default defineSchema({
     tournamentId: v.id("tournaments"),
     groupId: v.optional(v.id("groups")),
     gameId: v.optional(gameId),
+    matchMode: v.optional(valorantMatchMode),
     player1Id: v.id("participants"),
     player2Id: v.id("participants"),
     player1Score: v.optional(v.number()),
