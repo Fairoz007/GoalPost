@@ -1,4 +1,3 @@
-import { Analytics } from "@vercel/analytics/next";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Oswald } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -61,7 +60,6 @@ export default function RootLayout({
             <ConvexClientProvider>{children}</ConvexClientProvider>
           </TooltipProvider>
         </ClerkProvider>
-        {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
     </html>
   );
