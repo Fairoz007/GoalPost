@@ -53,18 +53,20 @@ export function SiteHeader() {
           <ClerkLoading>
             <div
               aria-hidden="true"
-              className="h-11 w-24 rounded-lg border border-white/8 bg-white/[.035] sm:w-[218px]"
+              className="h-11 w-[132px] rounded-lg border border-white/8 bg-white/[.035] sm:w-[218px]"
             />
           </ClerkLoading>
           <ClerkLoaded>
-            <Show when="signed-out">
-              <Link href="/sign-in" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "min-h-11")}>Sign in</Link>
-              <Link href="/sign-up" className={cn(buttonVariants({ size: "sm" }), "hidden min-h-11 sm:inline-flex")}>Create account</Link>
-            </Show>
-            <Show when="signed-in">
-              <Link href="/dashboard/tournaments" className={cn(buttonVariants({ size: "sm" }), "min-h-11")}>Dashboard</Link>
-              <UserButton />
-            </Show>
+            <div className="flex min-h-11 w-[132px] items-center justify-end gap-2 sm:w-[218px]">
+              <Show when="signed-out">
+                <Link href="/sign-in" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "min-h-11")}>Sign in</Link>
+                <Link href="/sign-up" className={cn(buttonVariants({ size: "sm" }), "hidden min-h-11 sm:inline-flex")}>Create account</Link>
+              </Show>
+              <Show when="signed-in">
+                <Link href="/dashboard/tournaments" className={cn(buttonVariants({ size: "sm" }), "min-h-11")}>Dashboard</Link>
+                <UserButton />
+              </Show>
+            </div>
           </ClerkLoaded>
           <button
             onClick={() => setOpen(!open)}

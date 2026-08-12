@@ -110,15 +110,11 @@ export function AuthCardLoading() {
   return (
     <div
       aria-label="Loading secure authentication"
-      className="min-h-[390px] w-full rounded-xl border border-white/10 bg-[#0d0d0d]/90 p-5 shadow-[0_24px_80px_rgba(0,0,0,.45)] backdrop-blur-xl sm:p-7"
+      className="h-[190px] w-full rounded-xl border border-white/10 bg-[#0d0d0d]/90 p-5 shadow-[0_24px_80px_rgba(0,0,0,.45)] backdrop-blur-xl sm:p-7"
     >
-      <div className="h-8 w-44 rounded-md bg-white/8" />
-      <div className="mt-3 h-4 w-64 max-w-full rounded bg-white/5" />
-      <div className="mt-8 h-12 rounded-lg border border-white/8 bg-white/[.04]" />
-      <div className="my-6 h-px bg-white/8" />
-      <div className="h-12 rounded-lg border border-white/8 bg-white/[.04]" />
-      <div className="mt-4 h-12 rounded-lg bg-primary/15" />
-      <div className="mx-auto mt-6 h-4 w-40 rounded bg-white/5" />
+      <div className="h-7 w-44 rounded-md bg-white/8" />
+      <div className="mt-2 h-4 w-64 max-w-full rounded bg-white/5" />
+      <div className="mt-6 h-12 rounded-lg border border-white/8 bg-white/[.04]" />
     </div>
   );
 }
