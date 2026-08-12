@@ -9,7 +9,7 @@ const games = [
 export default function ChooseTournamentGamePage() {
   return (
     <div className="mx-auto max-w-5xl py-10">
-      <p className="text-xs font-bold uppercase tracking-[.22em] text-primary">D1 Arena tournament manager</p>
+      <p className="text-xs font-bold uppercase tracking-[.22em] text-primary">Tournament manager</p>
       <h1 className="mt-3 font-display text-4xl font-bold uppercase">Choose a game</h1>
       <p className="mt-3 max-w-2xl text-muted-foreground">Each game has a separate creation URL and its own match configuration.</p>
       <div className="mt-10 grid gap-5 md:grid-cols-2">

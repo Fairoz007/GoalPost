@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Crosshair, Gamepad2, Trophy } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { UserButton } from "@clerk/nextjs";
 
 const navigation = [
   { name: "Tournaments", href: "/dashboard/tournaments", icon: Trophy },
@@ -19,11 +20,7 @@ export function Sidebar() {
 
   return (
     <div className="flex h-full w-64 flex-col border-r border-border bg-sidebar px-4 py-6">
-      <Link href="/" className="mb-8 flex items-center gap-2 font-display text-xl font-bold">
-        <Trophy className="size-6 text-primary" />
-        D1 Arena
-      </Link>
-      <nav className="flex flex-1 flex-col gap-1">
+      <nav className="flex flex-1 flex-col gap-1 pt-2">
         {navigation.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
           return (
@@ -51,6 +48,10 @@ export function Sidebar() {
             return <Link key={game.name} href={game.href} className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors", isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}><game.icon className="size-5" />{game.name}</Link>;
           })}
         </nav>
+      </div>
+      <div className="mt-5 flex min-h-12 items-center gap-3 rounded-xl border border-border bg-card px-3">
+        <UserButton />
+        <span className="text-sm font-medium">Account</span>
       </div>
     </div>
   );

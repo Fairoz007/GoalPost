@@ -8,12 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { valorantMatchModes, type ValorantMatchMode } from "@/lib/game-modules";
 
 export default function TournamentsPage() {
-  const tournaments = useQuery(api.tournaments.get);
+  const tournaments = useQuery(api.tournaments.getMine);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div><p className="text-xs font-bold uppercase tracking-[.2em] text-primary">D1 Arena</p><h1 className="mt-1 font-display text-3xl font-bold">Manage Tournaments</h1></div>
+        <div><p className="text-xs font-bold uppercase tracking-[.2em] text-primary">Tournament control center</p><h1 className="mt-1 font-display text-3xl font-bold">Manage Tournaments</h1></div>
         <div className="flex gap-2">
           <Link href="/dashboard/tournaments/create/valorant" className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold hover:border-primary/50"><Crosshair className="size-4 text-primary" />VALORANT</Link>
           <Link href="/dashboard/tournaments/create/efootball" className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"><Plus className="size-4" /><Gamepad2 className="size-4" />E-Football</Link>

@@ -43,8 +43,17 @@ export const COUNTRY_TO_ISO: Record<string, string> = {
   "Canada": "ca",
   "Australia": "au",
   "Iran": "ir",
-  "Saudi Arabia": "sa"
+  "Saudi Arabia": "sa",
+  "Oman": "om",
+  "United Arab Emirates": "ae",
+  "Qatar": "qa",
+  "Bahrain": "bh",
+  "Kuwait": "kw",
 };
+
+export const COUNTRY_OPTIONS = Object.entries(COUNTRY_TO_ISO)
+  .map(([name, code]) => ({ name, code: code.toUpperCase() }))
+  .sort((first, second) => first.name.localeCompare(second.name));
 
 export function getIsoFromFlagString(flagString: string | undefined): string | null {
   if (!flagString) return null;

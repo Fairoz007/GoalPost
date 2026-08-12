@@ -12,6 +12,7 @@ import { motion } from "framer-motion";
 import { HeroStats } from "@/components/dashboard/tournament/hero-stats";
 import { GroupsSidebar } from "@/components/dashboard/tournament/groups-sidebar";
 import { GroupDetails } from "@/components/dashboard/tournament/group-details";
+import { getTournamentEditCode } from "@/lib/tournament-admin";
 
 export default function GroupsPage() {
   const params = useParams();
@@ -57,7 +58,7 @@ export default function GroupsPage() {
 
   const handleCreateGroup = async () => {
     if (!newGroupName) return;
-    const newId = await createGroup({ name: newGroupName, tournamentId });
+    const newId = await createGroup({ name: newGroupName, tournamentId, adminCode: getTournamentEditCode(tournamentId) });
     setNewGroupName("");
     setActiveGroupId(newId);
   };
@@ -98,14 +99,14 @@ export default function GroupsPage() {
                 participants={participants}
                 matches={matches}
                 gameId={tournament.gameId === "valorant" ? "valorant" : "efootball"}
-                onUpdateStats={(matchId, participantId, values) => upsertStats({ matchId, participantId, gameId: tournament.gameId === "valorant" ? "valorant" : "efootball", ...values })}
-                onGenerateMatches={(id) => generateMatches({ tournamentId, groupId: id })}
-                onUpdateScore={(id, p1s, p2s) => updateScore({ matchId: id, player1Score: p1s, player2Score: p2s })}
+                onUpdateStats={(matchId, participantId, values) => upsertStats({ matchId, participantId, adminCode: getTournamentEditCode(tournamentId), gameId: tournament.gameId === "valorant" ? "valorant" : "efootball", ...values })}
+                onGenerateMatches={(id) => generateMatches({ tournamentId, groupId: id, adminCode: getTournamentEditCode(tournamentId) })}
+                onUpdateScore={(id, p1s, p2s) => updateScore({ matchId: id, player1Score: p1s, player2Score: p2s, adminCode: getTournamentEditCode(tournamentId) })}
                 onRemoveGroup={async (id) => {
-                  await removeGroup({ id });
+                  await removeGroup({ id, adminCode: getTournamentEditCode(tournamentId) });
                   setActiveGroupId(null);
                 }}
-                onAssignParticipant={(participantId, groupId) => assignToGroup({ participantId, groupId })}
+                onAssignParticipant={(participantId, groupId) => assignToGroup({ participantId, groupId, adminCode: getTournamentEditCode(tournamentId) })}
               />
             </SortableContext>
           </DndContext>

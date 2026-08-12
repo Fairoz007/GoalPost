@@ -2,13 +2,13 @@ import Link from 'next/link'
 import { ArrowUpRight, CalendarDays, Trophy, Users } from 'lucide-react'
 import { getGameModule } from '@/lib/game-modules'
 
-export type TournamentCardData = { _id: string; name: string; slug?: string; description?: string; gameId?: string; status: string; format: string; startDate: string; prizePool?: string; maxSlots?: number; participantCount?: number; bannerUrl?: string }
+export type TournamentCardData = { _id: string; name: string; slug?: string; description?: string; gameId?: string; status: string; format: string; startDate: string; prizePool?: string; maxSlots?: number; participantCount?: number; bannerUrl?: string; registrationEnabled?: boolean }
 export function tournamentHref(tournament: TournamentCardData) { return tournament.slug ? `/tournament/${tournament.slug}` : `/tournaments/${tournament._id}` }
 
 export function TournamentCard({ tournament, featured = false }: { tournament: TournamentCardData; featured?: boolean }) {
   const game = getGameModule(tournament.gameId)
   const live = tournament.status === 'Ongoing'
-  const registrationAvailable = !['Draft', 'Completed', 'Cancelled'].includes(tournament.status)
+  const registrationAvailable = tournament.registrationEnabled !== false && !['Draft', 'Completed', 'Cancelled'].includes(tournament.status)
   return <Link href={tournamentHref(tournament)} className={`group relative flex min-h-72 overflow-hidden rounded-2xl border border-border bg-card transition duration-300 hover:-translate-y-1 hover:border-primary/40 ${featured ? 'md:col-span-2' : ''}`}>
     <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(239,35,60,.18),transparent_45%)] opacity-70 transition group-hover:opacity-100" />
     {tournament.bannerUrl && <div className="absolute inset-0 bg-cover bg-center opacity-30 grayscale transition duration-500 group-hover:scale-105 group-hover:grayscale-0" style={{ backgroundImage: `url(${tournament.bannerUrl})` }} />}

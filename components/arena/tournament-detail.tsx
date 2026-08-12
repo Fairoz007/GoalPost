@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
@@ -21,7 +21,9 @@ import { getGameModule } from "@/lib/game-modules";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { COUNTRY_OPTIONS } from "@/lib/countries";
 import { ObsOverlayPanel } from "@/components/arena/obs-overlay-panel";
 
 const tabs = [
@@ -35,6 +37,7 @@ const tabs = [
   "Broadcast",
   "Rules",
 ] as const;
+const DISCORD_URL = "https://discord.gg/cD9PSWaSW";
 export function TournamentDetail({
   id,
   slug,
@@ -67,6 +70,7 @@ export function TournamentDetail({
     tournamentId ? { tournamentId } : "skip",
   );
   const register = useMutation(api.arena.register);
+  const { isAuthenticated } = useConvexAuth();
   const [tab, setTab] = useState<(typeof tabs)[number]>("Overview");
   const [registering, setRegistering] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -91,9 +95,7 @@ export function TournamentDetail({
       </div>
     );
   const game = getGameModule(tournament.gameId);
-  const registrationAvailable = !["Draft", "Completed", "Cancelled"].includes(
-    tournament.status,
-  );
+  const registrationAvailable = tournament.registrationEnabled !== false && !["Draft", "Completed", "Cancelled"].includes(tournament.status);
   const completed = (matches ?? []).filter(
     (match) => match.status === "Completed",
   );
@@ -192,13 +194,8 @@ export function TournamentDetail({
             )}
           </div>
           {registrationAvailable && (
-            <Button
-              onClick={() => setRegistering(true)}
-              size="lg"
-              className="mt-8"
-            >
-              Register free <ArrowRight className="size-4" />
-            </Button>
+            isAuthenticated ? <Button onClick={() => setRegistering(true)} size="lg" className="mt-8">Register free <ArrowRight className="size-4" /></Button>
+              : <Link href="/sign-in" className={cn(buttonVariants({ size: "lg" }), "mt-8")}>Sign in to register <ArrowRight className="size-4" /></Link>
           )}
         </div>
       </section>
@@ -218,12 +215,6 @@ export function TournamentDetail({
               {item}
             </button>
           ))}
-          <Link
-            href={`/dashboard/tournaments/${tournament._id}`}
-            className="ml-auto shrink-0 border-b-2 border-transparent px-4 py-4 text-sm font-semibold text-muted-foreground hover:text-white"
-          >
-            Manage
-          </Link>
         </div>
       </div>
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
@@ -326,6 +317,7 @@ export function TournamentDetail({
             tournament={tournament}
             game={game}
             available={registrationAvailable}
+            isAuthenticated={isAuthenticated}
             onRegister={() => setRegistering(true)}
           />
         )}
@@ -453,34 +445,40 @@ export function TournamentDetail({
                   <Check className="size-6 text-primary" />
                 </div>
                 <h2 className="mt-5 font-display text-2xl font-bold uppercase">
-                  Application received
+                  You&apos;re registered
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  The organizer will review your registration and can contact
-                  you using the details provided.
+                  Your place was approved automatically and you have been added to the participant list. No admin approval is needed.
                 </p>
-                {tournament.registrationGroupUrl && (
-                  <a
-                    className={cn(buttonVariants(), "mt-6")}
-                    href={tournament.registrationGroupUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Join registration group <ArrowRight className="size-4" />
-                  </a>
-                )}
+                <div className="mt-6 rounded-xl border border-border bg-background p-4 text-left text-sm text-muted-foreground">
+                  <p className="font-semibold text-white">What happens next</p>
+                  <ol className="mt-3 space-y-2">
+                    <li>1. Join Discord now for check-in, fixtures, and announcements.</li>
+                    <li>2. Check in at least 15 minutes before your match.</li>
+                    <li>3. Play the published fixture and keep result evidence.</li>
+                    <li>4. Report your score; qualified players advance automatically.</li>
+                  </ol>
+                  {tournament.format === "Single Group + Finals" && <p className="mt-3 border-t border-border pt-3">Everyone plays in one group. The top four qualify for the semifinals; the two winners then play the final.</p>}
+                </div>
+                <a
+                  className={cn(buttonVariants(), "mt-6")}
+                  href={tournament.registrationGroupUrl || DISCORD_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Please join the Discord <ArrowRight className="size-4" />
+                </a>
               </div>
             ) : (
               <>
                 <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                  Free · No account required
+                  Free · Secured by Clerk
                 </p>
                 <h2 className="mt-2 font-display text-3xl font-bold uppercase">
                   Enter the arena
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Submit your contact details, then use the organizer group to
-                  complete registration. Online payments are not enabled yet.
+                  Your contact details stay private to you and the tournament organizer. Public pages show only competition information.
                 </p>
                 <form onSubmit={submitRegistration} className="mt-6 space-y-4">
                   <Input
@@ -502,7 +500,10 @@ export function TournamentDetail({
                     placeholder="Phone number"
                     required
                   />
-                  <Input name="country" placeholder="Country code (optional)" />
+                  <Select name="country" required>
+                    <SelectTrigger><SelectValue placeholder="Choose your country" /></SelectTrigger>
+                    <SelectContent>{COUNTRY_OPTIONS.map((country) => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}</SelectContent>
+                  </Select>
                   {game.id === "valorant" && (
                     <div className="space-y-3 rounded-xl border border-border bg-background p-4">
                       <p className="text-xs font-bold uppercase tracking-wider text-primary">
@@ -534,7 +535,7 @@ export function TournamentDetail({
                   </p>
                   {error && <p className="text-sm text-red-400">{error}</p>}
                   <Button className="w-full" type="submit">
-                    Submit free registration
+                    Register and join automatically
                   </Button>
                 </form>
               </>
@@ -569,11 +570,13 @@ function RegistrationSection({
   tournament,
   game,
   available,
+  isAuthenticated,
   onRegister,
 }: {
   tournament: any;
   game: ReturnType<typeof getGameModule>;
   available: boolean;
+  isAuthenticated: boolean;
   onRegister: () => void;
 }) {
   return (
@@ -583,21 +586,17 @@ function RegistrationSection({
           eyebrow="Public registration"
           title={
             available
-              ? "Join without creating an account"
+              ? "Sign in and join securely"
               : "Registration is closed"
           }
         />
         <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground">
-          Registration is currently free. Enter your email and phone number so
-          the organizer can verify your application. A payment gateway may be
-          added later, but no online fee is collected today.
+          Registration is free and automatic. Clerk links the entry to your account, while contact details remain visible only to you and the tournament organizer.
         </p>
-        {available && (
-          <Button onClick={onRegister} size="lg" className="mt-7">
-            Register for {game.name}
-            <ArrowRight className="size-4" />
-          </Button>
-        )}
+        {!available && <p className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-200">This tournament is not accepting registrations right now. You can still review fixtures, standings, and rules.</p>}
+        {available && (isAuthenticated
+          ? <Button onClick={onRegister} size="lg" className="mt-7">Register for {game.name}<ArrowRight className="size-4" /></Button>
+          : <Link href="/sign-in" className={cn(buttonVariants({ size: "lg" }), "mt-7")}>Sign in to register<ArrowRight className="size-4" /></Link>)}
       </div>
       <aside className="rounded-xl border border-border bg-card p-6">
         <p className="text-xs font-bold uppercase tracking-wider text-primary">
@@ -609,38 +608,27 @@ function RegistrationSection({
             {game.id === "valorant" ? "team roster" : "player"} details.
           </li>
           <li>
-            <strong className="text-white">2.</strong> Join or contact the
-            organizer group.
+            <strong className="text-white">2.</strong> You are approved and added to the participant list automatically.
           </li>
           <li>
-            <strong className="text-white">3.</strong> Wait for manual approval
-            in the tournament dashboard.
+            <strong className="text-white">3.</strong> Please join the Discord for check-in, fixtures, results, and announcements.
           </li>
+          <li><strong className="text-white">4.</strong> Check in 15 minutes early, play your scheduled match, and report the result with evidence.</li>
         </ol>
         {tournament.registrationInstructions && (
           <p className="mt-5 border-t border-border pt-5 text-sm leading-6 text-muted-foreground">
             {tournament.registrationInstructions}
           </p>
         )}
-        {tournament.registrationGroupUrl ? (
-          <a
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "mt-5 w-full",
-            )}
-            href={tournament.registrationGroupUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Open registration group
-            <ArrowRight className="size-4" />
-          </a>
-        ) : (
-          <p className="mt-5 text-xs text-muted-foreground">
-            The organizer will contact you by email or phone if no group link is
-            listed.
-          </p>
-        )}
+        <a
+          className={cn(buttonVariants({ variant: "outline" }), "mt-5 w-full")}
+          href={tournament.registrationGroupUrl || DISCORD_URL}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Please join the Discord
+          <ArrowRight className="size-4" />
+        </a>
         {tournament.prizePool && (
           <div className="mt-5 border-t border-border pt-5">
             <p className="text-xs uppercase tracking-wider text-muted-foreground">

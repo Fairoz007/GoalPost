@@ -12,10 +12,11 @@ interface TournamentHeaderProps {
   status: string;
   startDate: string;
   publicHref: string;
+  settingsHref: string;
   gameName: string;
 }
 
-export function TournamentHeader({ name, type, status, startDate, publicHref, gameName }: TournamentHeaderProps) {
+export function TournamentHeader({ name, type, status, startDate, publicHref, settingsHref, gameName }: TournamentHeaderProps) {
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-border bg-card/50 px-6 py-4 backdrop-blur-md sticky top-0 z-10">
       <div className="flex items-center gap-4">
@@ -55,10 +56,7 @@ export function TournamentHeader({ name, type, status, startDate, publicHref, ga
           <Bell className="h-5 w-5 text-muted-foreground" />
           <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_rgba(0,210,106,0.8)]"></span>
         </Button>
-        <Button variant="outline" className="border-border bg-secondary/30 hover:bg-secondary gap-2 text-sm">
-          <Settings className="h-4 w-4 text-muted-foreground" />
-          Tournament Settings
-        </Button>
+        <Link href={settingsHref}><Button variant="outline" className="border-border bg-secondary/30 hover:bg-secondary gap-2 text-sm"><Settings className="h-4 w-4 text-muted-foreground" />Tournament Settings</Button></Link>
       </div>
     </div>
   );

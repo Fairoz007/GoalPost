@@ -6,6 +6,7 @@ import { Menu, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Logo } from "./logo";
+import { Show, UserButton } from "@clerk/nextjs";
 
 const nav = [
   { href: "/", label: "Home" },
@@ -49,9 +50,14 @@ export function SiteHeader() {
           >
             <Search className="size-4" />
           </Link>
-          <Link href="/tournaments" className={buttonVariants({ size: "sm" })}>
-            Join Tournament
-          </Link>
+          <Show when="signed-out">
+            <Link href="/sign-in" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "min-h-11")}>Sign in</Link>
+            <Link href="/sign-up" className={cn(buttonVariants({ size: "sm" }), "hidden min-h-11 sm:inline-flex")}>Create account</Link>
+          </Show>
+          <Show when="signed-in">
+            <Link href="/dashboard/tournaments" className={cn(buttonVariants({ size: "sm" }), "min-h-11")}>Dashboard</Link>
+            <UserButton />
+          </Show>
           <button
             onClick={() => setOpen(!open)}
             className="flex size-9 items-center justify-center rounded-md border border-border lg:hidden"

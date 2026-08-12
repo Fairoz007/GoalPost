@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Oswald } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ConvexClientProvider } from "./ConvexClientProvider";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
 const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
@@ -55,9 +56,11 @@ export default function RootLayout({
       className={`dark bg-background ${geistSans.variable} ${geistMono.variable} ${oswald.variable}`}
     >
       <body className="font-sans antialiased">
-        <TooltipProvider>
-          <ConvexClientProvider>{children}</ConvexClientProvider>
-        </TooltipProvider>
+        <ClerkProvider appearance={{ variables: { colorPrimary: "#f97316", borderRadius: "0.75rem", colorBackground: "#111111", colorForeground: "#fafafa", colorInput: "#181818", colorInputForeground: "#fafafa" } }}>
+          <TooltipProvider>
+            <ConvexClientProvider>{children}</ConvexClientProvider>
+          </TooltipProvider>
+        </ClerkProvider>
         {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
     </html>

@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { gameId, matchStatus, valorantMatchMode } from "./schema";
 import { isKnockoutFormat, isKnockoutMatch, rulesFor, type GameModuleId } from "./gameModules";
 import type { Doc, Id } from "./_generated/dataModel";
+import { requireTournamentAdmin } from "./tournamentAuth";
 
 type DbCtx = QueryCtx | MutationCtx;
 
@@ -243,7 +244,7 @@ export const getOverlayData = query({
       ?? orderedMatches.find((match) => match.status === "Scheduled")
       ?? [...orderedMatches].reverse().find((match) => match.status === "Completed")
       ?? null;
-    const { adminCode: _adminCode, ...publicTournament } = tournament;
+    const { adminCode: _adminCode, ownerToken: _ownerToken, ...publicTournament } = tournament;
     return {
       tournament: { ...publicTournament, gameId: selectedGame },
       match: selectedMatch,
@@ -261,20 +262,33 @@ export const getOverlayData = query({
 });
 
 export const create = mutation({
-  args: { tournamentId: v.id("tournaments"), groupId: v.optional(v.id("groups")), gameId: v.optional(gameId), matchMode: v.optional(valorantMatchMode), player1Id: v.id("participants"), player2Id: v.id("participants"), status: matchStatus, date: v.string(), round: v.optional(v.string()), bracketRound: v.optional(v.number()), bracketPosition: v.optional(v.number()), bracketKind: v.optional(v.union(v.literal("upper"), v.literal("lower"), v.literal("grand_final"))), bestOf: v.optional(v.number()) },
-  returns: v.id("matches"), handler: async (ctx, args) => await ctx.db.insert("matches", args),
+  args: { tournamentId: v.id("tournaments"), adminCode: v.optional(v.string()), groupId: v.optional(v.id("groups")), gameId: v.optional(gameId), matchMode: v.optional(valorantMatchMode), player1Id: v.id("participants"), player2Id: v.id("participants"), status: matchStatus, date: v.string(), round: v.optional(v.string()), bracketRound: v.optional(v.number()), bracketPosition: v.optional(v.number()), bracketKind: v.optional(v.union(v.literal("upper"), v.literal("lower"), v.literal("grand_final"))), bestOf: v.optional(v.number()) },
+  returns: v.id("matches"),
+  handler: async (ctx, args) => {
+    await requireTournamentAdmin(ctx, args.tournamentId, args.adminCode);
+    const [first, second, group] = await Promise.all([
+      ctx.db.get("participants", args.player1Id),
+      ctx.db.get("participants", args.player2Id),
+      args.groupId ? ctx.db.get("groups", args.groupId) : null,
+    ]);
+    if (!first || !second || first.tournamentId !== args.tournamentId || second.tournamentId !== args.tournamentId) throw new Error("Competitors must belong to this tournament.");
+    if (args.groupId && (!group || group.tournamentId !== args.tournamentId)) throw new Error("Group does not belong to this tournament.");
+    const { adminCode: _adminCode, ...match } = args;
+    return await ctx.db.insert("matches", match);
+  },
 });
 
 export const setStatus = mutation({
-  args: { matchId: v.id("matches"), status: matchStatus }, returns: v.null(),
-  handler: async (ctx, args) => { await ctx.db.patch(args.matchId, { status: args.status }); return null; },
+  args: { matchId: v.id("matches"), status: matchStatus, adminCode: v.optional(v.string()) }, returns: v.null(),
+  handler: async (ctx, args) => { const match = await ctx.db.get("matches", args.matchId); if (!match) throw new Error("Match not found."); await requireTournamentAdmin(ctx, match.tournamentId, args.adminCode); await ctx.db.patch(args.matchId, { status: args.status }); return null; },
 });
 
 export const updateScore = mutation({
-  args: { matchId: v.id("matches"), player1Score: v.number(), player2Score: v.number() }, returns: v.null(),
+  args: { matchId: v.id("matches"), player1Score: v.number(), player2Score: v.number(), adminCode: v.optional(v.string()) }, returns: v.null(),
   handler: async (ctx, args) => {
     if (![args.player1Score, args.player2Score].every((score) => Number.isInteger(score) && score >= 0)) throw new Error("Scores must be positive whole numbers.");
     const match = await ctx.db.get("matches", args.matchId); if (!match) throw new Error("Match not found.");
+    await requireTournamentAdmin(ctx, match.tournamentId, args.adminCode);
     const tournament = await ctx.db.get("tournaments", match.tournamentId); if (!tournament) throw new Error("Tournament not found.");
     const selectedGame = (match.gameId ?? tournament.gameId ?? "efootball") as GameModuleId;
     const rules = rulesFor(selectedGame);
@@ -298,13 +312,14 @@ export const updateScore = mutation({
 });
 
 export const upsertStats = mutation({
-  args: { matchId: v.id("matches"), participantId: v.id("participants"), gameId, goals: v.optional(v.number()), possession: v.optional(v.number()), shots: v.optional(v.number()), cards: v.optional(v.number()), mapsWon: v.optional(v.number()), roundsWon: v.optional(v.number()), kills: v.optional(v.number()), deaths: v.optional(v.number()), assists: v.optional(v.number()), acs: v.optional(v.number()) },
+  args: { matchId: v.id("matches"), participantId: v.id("participants"), adminCode: v.optional(v.string()), gameId, goals: v.optional(v.number()), possession: v.optional(v.number()), shots: v.optional(v.number()), cards: v.optional(v.number()), mapsWon: v.optional(v.number()), roundsWon: v.optional(v.number()), kills: v.optional(v.number()), deaths: v.optional(v.number()), assists: v.optional(v.number()), acs: v.optional(v.number()) },
   returns: v.id("matchStats"),
   handler: async (ctx, args) => {
     const match = await ctx.db.get("matches", args.matchId); if (!match) throw new Error("Match not found.");
+    await requireTournamentAdmin(ctx, match.tournamentId, args.adminCode);
     const participant = await ctx.db.get("participants", args.participantId);
     if (!participant || participant.tournamentId !== match.tournamentId || (participant._id !== match.player1Id && participant._id !== match.player2Id)) throw new Error("Competitor does not belong to this match.");
-    const { matchId, participantId, gameId: selectedGame, ...values } = args;
+    const { matchId, participantId, adminCode: _adminCode, gameId: selectedGame, ...values } = args;
     const existing = (await ctx.db.query("matchStats").withIndex("by_matchId", (q) => q.eq("matchId", matchId)).take(32)).find((row) => row.participantId === participantId);
     const data = { matchId, participantId, tournamentId: match.tournamentId, gameId: selectedGame, ...values };
     if (existing) { await ctx.db.patch(existing._id, data); return existing._id; }
@@ -357,9 +372,9 @@ export const getStatistics = query({
 });
 
 export const generateGroupMatches = mutation({
-  args: { tournamentId: v.id("tournaments"), groupId: v.optional(v.id("groups")) }, returns: v.number(),
+  args: { tournamentId: v.id("tournaments"), groupId: v.optional(v.id("groups")), adminCode: v.optional(v.string()) }, returns: v.number(),
   handler: async (ctx, args) => {
-    const tournament = await ctx.db.get("tournaments", args.tournamentId); if (!tournament) throw new Error("Tournament not found.");
+    const tournament = await requireTournamentAdmin(ctx, args.tournamentId, args.adminCode);
     const existing = args.groupId
       ? await ctx.db.query("matches").withIndex("by_groupId", (q) => q.eq("groupId", args.groupId)).take(1)
       : await ctx.db.query("matches").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.tournamentId)).take(1);
@@ -372,12 +387,23 @@ export const generateGroupMatches = mutation({
 });
 
 export const generateKnockout = mutation({
-  args: { tournamentId: v.id("tournaments") }, returns: v.number(),
+  args: { tournamentId: v.id("tournaments"), adminCode: v.optional(v.string()) }, returns: v.number(),
   handler: async (ctx, args) => {
+    await requireTournamentAdmin(ctx, args.tournamentId, args.adminCode);
     const { tournament, participants, matches, stats } = await tournamentData(ctx, args.tournamentId);
     if (matches.some((match) => match.bracketRound !== undefined)) throw new Error("A knockout bracket already exists.");
     let qualified = participants;
-    if (tournament.format === "Groups + Knockout" || tournament.format === "Groups") {
+    if (tournament.format === "Single Group + Finals") {
+      const groupStageMatches = matches.filter((match) => match.bracketRound === undefined);
+      if (!groupStageMatches.length || groupStageMatches.some((match) => match.status !== "Completed")) throw new Error("Complete every single-group fixture before generating the top-four finals.");
+      qualified = calculateStandings(
+        participants,
+        groupStageMatches,
+        stats,
+        (tournament.gameId ?? "efootball") as GameModuleId,
+      ).slice(0, 4).map((participant, index) => ({ ...participant, seed: index + 1 }));
+      if (qualified.length < 4) throw new Error("At least four players are required for the finals.");
+    } else if (tournament.format === "Groups + Knockout" || tournament.format === "Groups") {
       const groups = await ctx.db.query("groups").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.tournamentId)).take(32);
       qualified = groups.flatMap((group) => {
         const groupParticipants = participants.filter((participant) => participant.groupId === group._id);
@@ -390,10 +416,10 @@ export const generateKnockout = mutation({
 });
 
 export const generateTournament = mutation({
-  args: { tournamentId: v.id("tournaments") },
+  args: { tournamentId: v.id("tournaments"), adminCode: v.optional(v.string()) },
   returns: v.object({ mode: v.string(), created: v.number() }),
   handler: async (ctx, args) => {
-    const tournament = await ctx.db.get("tournaments", args.tournamentId); if (!tournament) throw new Error("Tournament not found.");
+    const tournament = await requireTournamentAdmin(ctx, args.tournamentId, args.adminCode);
     const participants = await ctx.db.query("participants").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.tournamentId)).take(64);
     const existing = await ctx.db.query("matches").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.tournamentId)).take(1);
     if (existing.length) throw new Error("This tournament already has fixtures.");
@@ -415,16 +441,20 @@ export const generateTournament = mutation({
 });
 
 export const createFinal = mutation({
-  args: { tournamentId: v.id("tournaments"), player1Id: v.id("participants"), player2Id: v.id("participants") }, returns: v.id("matches"),
+  args: { tournamentId: v.id("tournaments"), player1Id: v.id("participants"), player2Id: v.id("participants"), adminCode: v.optional(v.string()) }, returns: v.id("matches"),
   handler: async (ctx, args) => {
-    const tournament = await ctx.db.get("tournaments", args.tournamentId); if (!tournament) throw new Error("Tournament not found.");
-    return await ctx.db.insert("matches", { ...args, gameId: tournament.gameId ?? "efootball", status: "Scheduled", date: tournament.endDate ?? tournament.startDate, round: "Final", bracketRound: 2, bracketPosition: 0, bracketKind: "grand_final", bestOf: tournament.bestOf ?? rulesFor(tournament.gameId).defaultBestOf });
+    const tournament = await requireTournamentAdmin(ctx, args.tournamentId, args.adminCode);
+    const [first, second] = await Promise.all([ctx.db.get("participants", args.player1Id), ctx.db.get("participants", args.player2Id)]);
+    if (!first || !second || first.tournamentId !== args.tournamentId || second.tournamentId !== args.tournamentId) throw new Error("Competitors must belong to this tournament.");
+    const { adminCode: _adminCode, ...match } = args;
+    return await ctx.db.insert("matches", { ...match, gameId: tournament.gameId ?? "efootball", status: "Scheduled", date: tournament.endDate ?? tournament.startDate, round: "Final", bracketRound: 2, bracketPosition: 0, bracketKind: "grand_final", bestOf: tournament.bestOf ?? rulesFor(tournament.gameId).defaultBestOf });
   },
 });
 
 export const resetKnockout = mutation({
-  args: { tournamentId: v.id("tournaments") }, returns: v.number(),
+  args: { tournamentId: v.id("tournaments"), adminCode: v.optional(v.string()) }, returns: v.number(),
   handler: async (ctx, args) => {
+    await requireTournamentAdmin(ctx, args.tournamentId, args.adminCode);
     const matches = await ctx.db.query("matches").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.tournamentId)).take(512);
     const knockout = matches.filter((match) => match.bracketRound !== undefined);
     for (const match of knockout) {

@@ -36,7 +36,19 @@ export const matchStatus = v.union(
 );
 
 export default defineSchema({
+  users: defineTable({
+    tokenIdentifier: v.string(),
+    clerkUserId: v.string(),
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    lastSeenAt: v.number(),
+  })
+    .index("by_tokenIdentifier", ["tokenIdentifier"])
+    .index("by_email", ["email"]),
+
   tournaments: defineTable({
+    ownerToken: v.optional(v.string()),
     name: v.string(),
     slug: v.optional(v.string()),
     description: v.optional(v.string()),
@@ -52,6 +64,7 @@ export default defineSchema({
     prizePool: v.optional(v.string()),
     registrationGroupUrl: v.optional(v.string()),
     registrationInstructions: v.optional(v.string()),
+    registrationEnabled: v.optional(v.boolean()),
     maxSlots: v.optional(v.number()),
     teamSize: v.optional(v.number()),
     bestOf: v.optional(v.number()),
@@ -60,6 +73,7 @@ export default defineSchema({
     featured: v.optional(v.boolean()),
     adminCode: v.optional(v.string()),
   })
+    .index("by_ownerToken", ["ownerToken"])
     .index("by_slug", ["slug"])
     .index("by_status", ["status"])
     .index("by_gameId_and_status", ["gameId", "status"]),
@@ -71,6 +85,7 @@ export default defineSchema({
   }).index("by_tournamentId", ["tournamentId"]),
 
   participants: defineTable({
+    userId: v.optional(v.id("users")),
     name: v.string(),
     slug: v.optional(v.string()),
     tournamentId: v.id("tournaments"),
@@ -91,11 +106,13 @@ export default defineSchema({
     ),
   })
     .index("by_tournamentId", ["tournamentId"])
+    .index("by_tournamentId_and_userId", ["tournamentId", "userId"])
     .index("by_groupId", ["groupId"])
     .index("by_teamId", ["teamId"])
     .index("by_slug", ["slug"]),
 
   teams: defineTable({
+    ownerToken: v.optional(v.string()),
     name: v.string(),
     slug: v.string(),
     gameId,
@@ -162,6 +179,8 @@ export default defineSchema({
     .index("by_tournamentId", ["tournamentId"]),
 
   registrations: defineTable({
+    userId: v.optional(v.id("users")),
+    ownerToken: v.optional(v.string()),
     tournamentId: v.id("tournaments"),
     applicantName: v.string(),
     applicantEmail: v.string(),
@@ -177,7 +196,23 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_tournamentId", ["tournamentId"])
+    .index("by_ownerToken", ["ownerToken"])
+    .index("by_ownerToken_and_tournamentId", ["ownerToken", "tournamentId"])
     .index("by_tournamentId_and_status", ["tournamentId", "status"]),
+
+  tournamentInvites: defineTable({
+    tournamentId: v.id("tournaments"),
+    inviterToken: v.string(),
+    inviteeUserId: v.optional(v.id("users")),
+    email: v.string(),
+    displayName: v.optional(v.string()),
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("cancelled")),
+    createdAt: v.number(),
+  })
+    .index("by_tournamentId", ["tournamentId"])
+    .index("by_tournamentId_and_email", ["tournamentId", "email"])
+    .index("by_inviteeUserId", ["inviteeUserId"])
+    .index("by_email", ["email"]),
 
   registrationRoster: defineTable({
     registrationId: v.id("registrations"),
@@ -186,6 +221,7 @@ export default defineSchema({
   }).index("by_registrationId", ["registrationId"]),
 
   disputes: defineTable({
+    reporterToken: v.optional(v.string()),
     matchId: v.id("matches"),
     reporterName: v.string(),
     reason: v.string(),
