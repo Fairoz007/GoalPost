@@ -109,7 +109,8 @@ export function AuthShell({
 export function AuthCardLoading() {
   return (
     <div
-      aria-label="Loading secure authentication"
+      aria-hidden="true"
+      data-auth-loading-card
       className="h-[190px] w-full rounded-xl border border-white/10 bg-[#0d0d0d]/90 p-5 shadow-[0_24px_80px_rgba(0,0,0,.45)] backdrop-blur-xl sm:p-7"
     >
       <div className="h-7 w-44 rounded-md bg-white/8" />
