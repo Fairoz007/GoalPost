@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "cf:build": "opennextjs-cloudflare build",
+    "build": "opennextjs-cloudflare build",
+    "next:build": "next build",
+    "cf:build": "npm run build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "cf:deploy": "opennextjs-cloudflare deploy",
     "deploy": "npm run cf:build && npm run cf:deploy",
