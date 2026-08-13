@@ -15,7 +15,7 @@ import { COUNTRY_OPTIONS, getIsoFromFlagString } from '@/lib/countries'
 type RosterInput = { displayName: string; role: 'captain' | 'player' | 'substitute' | 'coach' }
 type RosterMember = RosterInput & { _id?: string }
 type Competitor = { _id: Id<'participants'>; name: string; gameId?: 'efootball' | 'valorant'; countryCode?: string; flag?: string; captain?: string; logoUrl?: string; checkedIn?: boolean; roster?: RosterMember[] }
-type DirectoryUser = { _id: Id<'users'>; name?: string; email: string; imageUrl?: string }
+type DirectoryUser = { _id: Id<'users'>; name?: string; email?: string; imageUrl?: string; alreadyParticipant: boolean }
 
 function normalizeCountry(competitor: Competitor) {
   const stored = competitor.countryCode?.trim()
@@ -82,17 +82,19 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
 
   const selectRegisteredUser = (userId: string | null) => {
     if (!userId) return
+    const user = directory?.find((item) => item._id === userId)
+    if (!user || user.alreadyParticipant) return
     setSelectedUserId(userId)
     setSelectedHistoryId('')
-    const user = directory?.find((item) => item._id === userId)
     if (user?.name) setName(user.name)
   }
 
   const selectInviteUser = (userId: string | null) => {
     if (!userId) return
-    setInviteUserId(userId)
     const user = directory?.find((item) => item._id === userId)
-    if (user) setInviteEmail(user.email)
+    if (!user?.email || user.alreadyParticipant) return
+    setInviteUserId(userId)
+    setInviteEmail(user.email)
   }
 
   const clearForm = () => {
@@ -167,7 +169,7 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
       <h2 className="mt-5 font-display text-2xl font-bold uppercase">Invite participants</h2>
       <p className="mt-1 text-sm text-muted-foreground">Choose an Arena account or invite any valid email address.</p>
       <div className="mt-5 space-y-4">
-        {directory && directory.length > 0 && <Field label="Registered Arena user"><Select value={inviteUserId} onValueChange={selectInviteUser}><SelectTrigger className="w-full"><SelectDisplay value={directory.find((user) => user._id === inviteUserId)?.name || directory.find((user) => user._id === inviteUserId)?.email || ''} placeholder="Choose a registered user" /></SelectTrigger><SelectContent>{directory.map((user) => <SelectItem key={user._id} value={user._id}>{user.name || 'Arena user'} · {user.email}</SelectItem>)}</SelectContent></Select></Field>}
+        {directory && directory.length > 0 && <Field label="Registered Arena user"><Select value={inviteUserId} onValueChange={selectInviteUser}><SelectTrigger className="w-full"><SelectDisplay value={directory.find((user) => user._id === inviteUserId)?.name || directory.find((user) => user._id === inviteUserId)?.email || ''} placeholder="Choose a registered user" /></SelectTrigger><SelectContent>{directory.map((user) => <SelectItem key={user._id} value={user._id} disabled={user.alreadyParticipant || !user.email}>{user.name || user.email || 'Arena user'}{user.email ? ` · ${user.email}` : ''}{user.alreadyParticipant ? ' · Already added' : !user.email ? ' · Email unavailable' : ''}</SelectItem>)}</SelectContent></Select></Field>}
         <Field label="Invitation email"><Input type="email" value={inviteEmail} onChange={(event) => { setInviteEmail(event.target.value); if (inviteUserId) setInviteUserId('') }} placeholder="player@example.com" required /></Field>
         {inviteError && <p role="alert" className="text-sm text-destructive">{inviteError}</p>}
         <Button type="submit" className="w-full" disabled={inviting}><Send className="size-4" />{inviting ? 'Creating…' : 'Create invitation'}</Button>
@@ -180,8 +182,9 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
       <h2 className="mt-5 font-display text-2xl font-bold uppercase">Add {isValorant ? 'team' : 'player'}</h2>
       <p className="mt-1 text-sm text-muted-foreground">Select a previous competitor or enter a new one.</p>
 
-      {directory && directory.length > 0 && <div className="mt-6"><Field label="Registered Arena account (optional)"><Select value={selectedUserId} onValueChange={selectRegisteredUser}><SelectTrigger className="w-full"><SelectDisplay value={directory.find((user) => user._id === selectedUserId)?.name || directory.find((user) => user._id === selectedUserId)?.email || ''} placeholder={`Link registered ${isValorant ? 'captain' : 'player'}`} /></SelectTrigger><SelectContent>{directory.map((user) => <SelectItem key={user._id} value={user._id}>{user.name || 'Arena user'} · {user.email}</SelectItem>)}</SelectContent></Select></Field></div>}
+      {directory && directory.length > 0 && <div className="mt-6"><Field label="Registered Arena account (optional)"><Select value={selectedUserId} onValueChange={selectRegisteredUser}><SelectTrigger className="w-full"><SelectDisplay value={directory.find((user) => user._id === selectedUserId)?.name || directory.find((user) => user._id === selectedUserId)?.email || ''} placeholder={`Link registered ${isValorant ? 'captain' : 'player'}`} /></SelectTrigger><SelectContent>{directory.map((user) => <SelectItem key={user._id} value={user._id} disabled={user.alreadyParticipant}>{user.name || user.email || 'Arena user'}{user.email ? ` · ${user.email}` : ''}{user.alreadyParticipant ? ' · Already added' : ''}</SelectItem>)}</SelectContent></Select></Field></div>}
 
+      {directory?.length === 0 && <div className="mt-6 rounded-xl border border-dashed border-border bg-background/40 px-4 py-3 text-xs leading-5 text-muted-foreground">No registered Arena accounts yet. A user will appear here after signing in to the website at least once.</div>}
       {selectedUserId && <div className="mt-2 flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-400"><span>This player will be linked to the selected Arena account.</span><button type="button" className="font-bold uppercase tracking-wider hover:text-white" onClick={() => setSelectedUserId('')}>Clear</button></div>}
 
       {historicalCompetitors.length > 0 && <div className="mt-6 space-y-3">

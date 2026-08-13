@@ -54,8 +54,9 @@ export const listDirectory = query({
   returns: v.array(v.object({
     _id: v.id("users"),
     name: v.optional(v.string()),
-    email: v.string(),
+    email: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    alreadyParticipant: v.boolean(),
   })),
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx);
@@ -73,8 +74,12 @@ export const listDirectory = query({
     const participatingUserIds = new Set(
       participants.flatMap((participant) => participant.userId ? [participant.userId] : []),
     );
-    return users
-      .filter((user): user is typeof user & { email: string } => Boolean(user.email) && !participatingUserIds.has(user._id))
-      .map((user) => ({ _id: user._id, name: user.name, email: user.email, imageUrl: user.imageUrl }));
+    return users.map((user) => ({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      imageUrl: user.imageUrl,
+      alreadyParticipant: participatingUserIds.has(user._id),
+    }));
   },
 });

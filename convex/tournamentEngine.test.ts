@@ -98,7 +98,7 @@ describe("game-aware tournament engine", () => {
     });
 
     expect(await organizer.query(api.users.listDirectory, { tournamentId })).toMatchObject([
-      { _id: registeredUserId, name: "Registered Player", email: "registered@example.com" },
+      { _id: registeredUserId, name: "Registered Player", email: "registered@example.com", alreadyParticipant: false },
     ]);
     await expect(outsider.query(api.users.listDirectory, { tournamentId })).rejects.toThrow("permission");
     const inviteId = await organizer.mutation(api.invitations.create, {
@@ -117,7 +117,9 @@ describe("game-aware tournament engine", () => {
       name: "Registered Player",
       gameId: "efootball",
     });
-    expect(await organizer.query(api.users.listDirectory, { tournamentId })).toEqual([]);
+    expect(await organizer.query(api.users.listDirectory, { tournamentId })).toMatchObject([
+      { _id: registeredUserId, alreadyParticipant: true },
+    ]);
     const [participant] = await base.query(api.participants.getByTournament, { tournamentId });
     expect(participant).not.toHaveProperty("userId");
     await expect(organizer.mutation(api.participants.create, {
