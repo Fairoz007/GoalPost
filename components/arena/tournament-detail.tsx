@@ -21,7 +21,7 @@ import { getGameModule } from "@/lib/game-modules";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { COUNTRY_OPTIONS } from "@/lib/countries";
 import { ObsOverlayPanel } from "@/components/arena/obs-overlay-panel";
@@ -38,6 +38,10 @@ const tabs = [
   "Rules",
 ] as const;
 const DISCORD_URL = "https://discord.gg/cD9PSWaSW";
+function countryName(countryCode: string) {
+  return COUNTRY_OPTIONS.find((country) => country.code === countryCode)?.name ?? "";
+}
+
 export function TournamentDetail({
   id,
   slug,
@@ -75,6 +79,7 @@ export function TournamentDetail({
   const [registering, setRegistering] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [registerCountry, setRegisterCountry] = useState("");
   const byParticipant = useMemo(
     () => new Map((participants ?? []).map((p) => [p._id, p])),
     [participants],
@@ -132,6 +137,7 @@ export function TournamentDetail({
         roster,
       });
       setSubmitted(true);
+      setRegisterCountry("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Registration failed.");
     }
@@ -500,8 +506,24 @@ export function TournamentDetail({
                     placeholder="Phone number"
                     required
                   />
-                  <Select name="country" required>
-                    <SelectTrigger><SelectValue placeholder="Choose your country" /></SelectTrigger>
+                  <Select
+                    name="country"
+                    value={registerCountry}
+                    onValueChange={(value) => setRegisterCountry((value ?? "").toUpperCase())}
+                    required
+                  >
+                    <SelectTrigger>
+                      <span
+                        className={cn(
+                          "truncate text-left",
+                          registerCountry
+                            ? "text-foreground"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {countryName(registerCountry) || "Choose your country"}
+                      </span>
+                    </SelectTrigger>
                     <SelectContent>{COUNTRY_OPTIONS.map((country) => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}</SelectContent>
                   </Select>
                   {game.id === "valorant" && (

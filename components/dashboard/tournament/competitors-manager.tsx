@@ -8,7 +8,7 @@ import type { Id } from '@/convex/_generated/dataModel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { COUNTRY_OPTIONS, getIsoFromFlagString } from '@/lib/countries'
 
 type RosterInput = { displayName: string; role: 'captain' | 'player' | 'substitute' | 'coach' }
@@ -21,6 +21,14 @@ function normalizeCountry(competitor: Competitor) {
   if (stored?.length === 2) return stored.toUpperCase()
   const byName = COUNTRY_OPTIONS.find((country) => country.name.toLowerCase() === stored?.toLowerCase())
   return byName?.code ?? getIsoFromFlagString(competitor.flag)?.toUpperCase() ?? ''
+}
+
+function countryName(countryCode: string) {
+  return COUNTRY_OPTIONS.find((country) => country.code === countryCode)?.name ?? ''
+}
+
+function SelectDisplay({ value, placeholder }: { value: string; placeholder: string }) {
+  return <span className={value ? 'truncate text-left text-foreground' : 'truncate text-left text-muted-foreground'}>{value || placeholder}</span>
 }
 
 export function CompetitorsManager({ tournamentId, tournamentName, gameId, competitors, onCreate, onRemove }: {
@@ -50,6 +58,7 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
   const [captain, setCaptain] = useState('')
   const [players, setPlayers] = useState(['', '', '', ''])
   const [substitute, setSubstitute] = useState('')
+  const [createError, setCreateError] = useState('')
 
   const historicalCompetitors = useMemo(() => {
     const currentNames = new Set(competitors.map((competitor) => competitor.name.trim().toLowerCase()))
@@ -91,20 +100,33 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
     setCaptain('')
     setPlayers(['', '', '', ''])
     setSubstitute('')
+    setCreateError('')
   }
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setSaving(true)
+    setCreateError('')
     try {
+      const trimmedName = name.trim()
+      const trimmedCountry = countryCode.trim().toUpperCase()
+      if (!trimmedName) throw new Error(`${isValorant ? 'Team' : 'Player'} name is required.`)
+      if (!trimmedCountry) throw new Error('Choose a country.')
       if (isValorant) {
-        const roster: RosterInput[] = [{ displayName: captain, role: 'captain' }, ...players.map((displayName) => ({ displayName, role: 'player' as const }))]
+        const trimmedCaptain = captain.trim()
+        const trimmedPlayers = players.map((player) => player.trim())
+        if (!trimmedCaptain || trimmedPlayers.some((player) => !player)) {
+          throw new Error('Enter the captain and all four starting players.')
+        }
+        const roster: RosterInput[] = [{ displayName: trimmedCaptain, role: 'captain' }, ...trimmedPlayers.map((displayName) => ({ displayName, role: 'player' as const }))]
         if (substitute.trim()) roster.push({ displayName: substitute.trim(), role: 'substitute' })
-        await onCreate({ name, userId: selectedUserId ? selectedUserId as Id<'users'> : undefined, countryCode, captain, roster })
+        await onCreate({ name: trimmedName, userId: selectedUserId ? selectedUserId as Id<'users'> : undefined, countryCode: trimmedCountry, captain: trimmedCaptain, roster })
       } else {
-        await onCreate({ name, userId: selectedUserId ? selectedUserId as Id<'users'> : undefined, countryCode })
+        await onCreate({ name: trimmedName, userId: selectedUserId ? selectedUserId as Id<'users'> : undefined, countryCode: trimmedCountry })
       }
       clearForm()
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message.replace(/^Uncaught Error: /, '') : `Could not add ${isValorant ? 'team' : 'player'}.`)
     } finally {
       setSaving(false)
     }
@@ -135,10 +157,10 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
       <h2 className="mt-5 font-display text-2xl font-bold uppercase">Invite participants</h2>
       <p className="mt-1 text-sm text-muted-foreground">Choose an Arena account or invite any valid email address.</p>
       <div className="mt-5 space-y-4">
-        {directory && directory.length > 0 && <Field label="Registered Arena user"><Select value={inviteUserId} onValueChange={selectInviteUser}><SelectTrigger className="w-full"><SelectValue placeholder="Choose a registered user" /></SelectTrigger><SelectContent>{directory.map((user) => <SelectItem key={user._id} value={user._id}>{user.name || 'Arena user'} · {user.email}</SelectItem>)}</SelectContent></Select></Field>}
+        {directory && directory.length > 0 && <Field label="Registered Arena user"><Select value={inviteUserId} onValueChange={selectInviteUser}><SelectTrigger className="w-full"><SelectDisplay value={directory.find((user) => user._id === inviteUserId)?.name || directory.find((user) => user._id === inviteUserId)?.email || ''} placeholder="Choose a registered user" /></SelectTrigger><SelectContent>{directory.map((user) => <SelectItem key={user._id} value={user._id}>{user.name || 'Arena user'} · {user.email}</SelectItem>)}</SelectContent></Select></Field>}
         <Field label="Invitation email"><Input type="email" value={inviteEmail} onChange={(event) => { setInviteEmail(event.target.value); if (inviteUserId) setInviteUserId('') }} placeholder="player@example.com" required /></Field>
         {inviteError && <p role="alert" className="text-sm text-destructive">{inviteError}</p>}
-        <Button className="w-full" disabled={inviting}><Send className="size-4" />{inviting ? 'Creating…' : 'Create invitation'}</Button>
+        <Button type="submit" className="w-full" disabled={inviting}><Send className="size-4" />{inviting ? 'Creating…' : 'Create invitation'}</Button>
         {inviteHref && <a href={inviteHref} className="flex min-h-10 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 px-4 text-sm font-semibold text-primary transition hover:bg-primary/15">Open prepared email</a>}
       </div>
       {invitations && invitations.length > 0 && <div className="mt-6 border-t border-border pt-4"><p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Recent invitations</p><div className="mt-3 space-y-2">{invitations.slice(0, 5).map((invitation) => <div key={invitation._id} className="flex items-center gap-2 rounded-lg bg-background px-3 py-2"><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{invitation.displayName || invitation.email}</p><p className="truncate text-xs capitalize text-muted-foreground">{invitation.displayName ? `${invitation.email} · ` : ''}{invitation.status}</p></div>{invitation.status === 'pending' && <button type="button" aria-label={`Cancel invitation for ${invitation.email}`} onClick={() => void cancelInvitation({ inviteId: invitation._id })} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"><X className="size-4" /></button>}</div>)}</div></div>}
@@ -148,12 +170,12 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
       <h2 className="mt-5 font-display text-2xl font-bold uppercase">Add {isValorant ? 'team' : 'player'}</h2>
       <p className="mt-1 text-sm text-muted-foreground">Select a previous competitor or enter a new one.</p>
 
-      {directory && directory.length > 0 && <div className="mt-6"><Field label="Registered Arena account"><Select value={selectedUserId} onValueChange={selectRegisteredUser}><SelectTrigger className="w-full"><SelectValue placeholder={`Select registered ${isValorant ? 'captain' : 'player'}`} /></SelectTrigger><SelectContent>{directory.map((user) => <SelectItem key={user._id} value={user._id}>{user.name || 'Arena user'} · {user.email}</SelectItem>)}</SelectContent></Select></Field></div>}
+      {directory && directory.length > 0 && <div className="mt-6"><Field label="Registered Arena account"><Select value={selectedUserId} onValueChange={selectRegisteredUser}><SelectTrigger className="w-full"><SelectDisplay value={directory.find((user) => user._id === selectedUserId)?.name || directory.find((user) => user._id === selectedUserId)?.email || ''} placeholder={`Select registered ${isValorant ? 'captain' : 'player'}`} /></SelectTrigger><SelectContent>{directory.map((user) => <SelectItem key={user._id} value={user._id}>{user.name || 'Arena user'} · {user.email}</SelectItem>)}</SelectContent></Select></Field></div>}
 
       {historicalCompetitors.length > 0 && <div className="mt-6 space-y-3">
         <Field label="Quick import from previous tournaments">
           <Select value={selectedHistoryId} onValueChange={selectHistorical}>
-            <SelectTrigger className="w-full"><SelectValue placeholder={`Select previous ${isValorant ? 'team' : 'player'}…`} /></SelectTrigger>
+            <SelectTrigger className="w-full"><SelectDisplay value={historicalCompetitors.find((competitor) => competitor._id === selectedHistoryId)?.name ?? ''} placeholder={`Select previous ${isValorant ? 'team' : 'player'}…`} /></SelectTrigger>
             <SelectContent>{historicalCompetitors.map((competitor) => <SelectItem key={competitor._id} value={competitor._id}>{competitor.name}{normalizeCountry(competitor) ? ` · ${normalizeCountry(competitor)}` : ''}</SelectItem>)}</SelectContent>
           </Select>
         </Field>
@@ -162,14 +184,15 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
 
       <div className="mt-6 space-y-4">
         <Field label={isValorant ? 'Team name' : 'Player name'}><Input value={name} onChange={(event) => setName(event.target.value)} required /></Field>
-        <Field label="Country"><Select value={countryCode} onValueChange={(value) => setCountryCode(value ?? '')} required><SelectTrigger className="w-full"><SelectValue placeholder="Choose a country" /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map((country) => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}</SelectContent></Select></Field>
+        <Field label="Country"><Select value={countryCode} onValueChange={(value) => setCountryCode((value ?? '').toUpperCase())} required><SelectTrigger className="w-full"><SelectDisplay value={countryName(countryCode)} placeholder="Choose a country" /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map((country) => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}</SelectContent></Select></Field>
         {isValorant && <>
           <Field label="Captain"><Input value={captain} onChange={(event) => setCaptain(event.target.value)} required /></Field>
           {players.map((player, index) => <Field key={index} label={`Starting player ${index + 2}`}><Input value={player} onChange={(event) => setPlayers((current) => current.map((value, playerIndex) => playerIndex === index ? event.target.value : value))} required /></Field>)}
           <Field label="Substitute (optional)"><Input value={substitute} onChange={(event) => setSubstitute(event.target.value)} /></Field>
         </>}
       </div>
-      <Button className="mt-6 w-full" disabled={saving}><Plus className="size-4" />{saving ? 'Adding…' : `Add ${isValorant ? 'team' : 'player'}`}</Button>
+      {createError && <p role="alert" className="mt-4 text-sm text-destructive">{createError}</p>}
+      <Button type="submit" className="mt-6 w-full" disabled={saving}><Plus className="size-4" />{saving ? 'Adding…' : `Add ${isValorant ? 'team' : 'player'}`}</Button>
     </form>
     </div>
 
