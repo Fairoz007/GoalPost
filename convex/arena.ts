@@ -2,14 +2,46 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { gameId } from "./schema";
 import { rulesFor } from "./gameModules";
-import { insertCompetitor } from "./participants";
+import { competitorRankingKey, insertCompetitor } from "./participants";
 import { requireTournamentAdmin } from "./tournamentAuth";
 import { requireIdentity } from "./model/auth";
 
 export const listRankings = query({
   args: { gameId, limit: v.optional(v.number()) },
   returns: v.array(v.any()),
-  handler: async (ctx, args) => await ctx.db.query("rankings").withIndex("by_gameId_and_rating", (q) => q.eq("gameId", args.gameId)).order("desc").take(Math.min(args.limit ?? 50, 100)),
+  handler: async (ctx, args) => {
+    const limit = Math.min(args.limit ?? 50, 100);
+    const [rankings, participants] = await Promise.all([
+      ctx.db.query("rankings").withIndex("by_gameId_and_rating", (q) => q.eq("gameId", args.gameId)).order("desc").take(limit),
+      ctx.db.query("participants").withIndex("by_gameId", (q) => q.eq("gameId", args.gameId)).order("desc").take(500),
+    ]);
+    const knownKeys = new Set(rankings.map((ranking) => ranking.competitorKey));
+    const provisionalKeys = new Set<string>();
+    const provisional = [];
+    for (const participant of participants) {
+      const competitorKey = competitorRankingKey(participant);
+      if (knownKeys.has(competitorKey) || provisionalKeys.has(competitorKey)) continue;
+      provisionalKeys.add(competitorKey);
+      provisional.push({
+        _id: participant._id,
+        _creationTime: participant._creationTime,
+        gameId: args.gameId,
+        competitorKey,
+        displayName: participant.name,
+        kind: participant.kind ?? (args.gameId === "valorant" ? "team" : "player"),
+        slug: participant.slug,
+        countryCode: participant.countryCode,
+        rating: 1000,
+        wins: 0,
+        losses: 0,
+        tournamentsWon: 0,
+        updatedAt: participant._creationTime,
+      });
+    }
+    return [...rankings, ...provisional]
+      .sort((a, b) => b.rating - a.rating || b.wins - a.wins || b.updatedAt - a.updatedAt)
+      .slice(0, limit);
+  },
 });
 
 export const listChampions = query({

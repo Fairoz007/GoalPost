@@ -117,6 +117,7 @@ describe("game-aware tournament engine", () => {
       name: "Registered Player",
       gameId: "efootball",
     });
+    expect(await organizer.query(api.users.listDirectory, { tournamentId })).toEqual([]);
     const [participant] = await base.query(api.participants.getByTournament, { tournamentId });
     expect(participant).not.toHaveProperty("userId");
     await expect(organizer.mutation(api.participants.create, {
@@ -124,7 +125,7 @@ describe("game-aware tournament engine", () => {
       userId: registeredUserId,
       name: "Duplicate Account",
       gameId: "efootball",
-    })).rejects.toThrow("already a participant");
+    })).rejects.toMatchObject({ data: expect.stringContaining("already been added") });
   });
 
   test("a legacy edit code can bind an unowned tournament only once", async () => {
@@ -295,6 +296,39 @@ describe("game-aware tournament engine", () => {
     expect(overlay.tournament.gameId).toBe("valorant");
     expect(overlay.standings).toHaveLength(2);
     expect(overlay.standings[0]).toHaveProperty("mapDifferential");
+  });
+
+  test("rankings include provisional competitors and matches accept safe YouTube URLs", async () => {
+    const base = convexTest(schema, modules);
+    const t = base.withIdentity(organizerIdentity);
+    const tournamentId = await createTournament(t, "efootball", "League");
+    await t.mutation(api.participants.create, { tournamentId, adminCode: editCodeFor(tournamentId), name: "Video Alpha", gameId: "efootball" });
+    await t.mutation(api.participants.create, { tournamentId, adminCode: editCodeFor(tournamentId), name: "Video Bravo", gameId: "efootball" });
+
+    const rankings = await t.query(api.arena.listRankings, { gameId: "efootball", limit: 10 });
+    expect(rankings).toHaveLength(2);
+    expect(rankings.every((ranking) => ranking.rating === 1000 && ranking.wins === 0 && ranking.losses === 0)).toBe(true);
+
+    await t.mutation(api.matches.generateTournament, { tournamentId, adminCode: editCodeFor(tournamentId) });
+    const [match] = await t.query(api.matches.getByTournament, { tournamentId });
+    await t.mutation(api.matches.setYouTubeVideo, {
+      matchId: match._id,
+      videoUrl: "https://youtu.be/dQw4w9WgXcQ?t=43",
+      adminCode: editCodeFor(tournamentId),
+    });
+    expect(await t.query(api.matches.getById, { id: match._id })).toMatchObject({ youtubeVideoId: "dQw4w9WgXcQ" });
+    const outsider = base.withIdentity({ subject: "clerk-stream-outsider", issuer: "https://clerk.test", tokenIdentifier: "https://clerk.test|clerk-stream-outsider" });
+    await expect(outsider.mutation(api.matches.setYouTubeVideo, {
+      matchId: match._id,
+      videoUrl: "https://youtu.be/9bZkp7q19f0",
+    })).rejects.toThrow("permission");
+    await expect(t.mutation(api.matches.setYouTubeVideo, {
+      matchId: match._id,
+      videoUrl: "https://example.com/not-youtube",
+      adminCode: editCodeFor(tournamentId),
+    })).rejects.toThrow("YouTube");
+    await t.mutation(api.matches.setYouTubeVideo, { matchId: match._id, videoUrl: "", adminCode: editCodeFor(tournamentId) });
+    expect(await t.query(api.matches.getById, { id: match._id })).not.toHaveProperty("youtubeVideoId");
   });
 
   test("single-elimination rounds auto-advance and publish a champion", async () => {

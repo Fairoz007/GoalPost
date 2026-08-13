@@ -1,8 +1,8 @@
 import { mutation, query, type MutationCtx } from "./_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { gameId } from "./schema";
 import { rulesFor, type GameModuleId } from "./gameModules";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { requireTournamentAdmin } from "./tournamentAuth";
 import { requireIdentity } from "./model/auth";
 
@@ -30,6 +30,34 @@ type CompetitorInput = {
   roster?: Array<{ displayName: string; role: "captain" | "player" | "coach" | "substitute"; countryCode?: string }>;
 };
 
+export function competitorRankingKey(participant: Doc<"participants">) {
+  if (participant.teamId) return `team:${participant.teamId}`;
+  if (participant.userId) return `user:${participant.userId}`;
+  return `participant:${participant._id}`;
+}
+
+async function ensureProvisionalRanking(ctx: MutationCtx, participant: Doc<"participants">, selectedGame: GameModuleId) {
+  const competitorKey = competitorRankingKey(participant);
+  const existing = await ctx.db
+    .query("rankings")
+    .withIndex("by_competitorKey", (q) => q.eq("competitorKey", competitorKey))
+    .unique();
+  if (existing) return;
+  await ctx.db.insert("rankings", {
+    gameId: selectedGame,
+    competitorKey,
+    displayName: participant.name,
+    kind: participant.kind ?? (selectedGame === "valorant" ? "team" : "player"),
+    slug: participant.slug,
+    countryCode: participant.countryCode,
+    rating: 1000,
+    wins: 0,
+    losses: 0,
+    tournamentsWon: 0,
+    updatedAt: Date.now(),
+  });
+}
+
 export async function insertCompetitor(ctx: MutationCtx, args: CompetitorInput) {
   const tournament = await ctx.db.get("tournaments", args.tournamentId);
   if (!tournament) throw new Error("Tournament not found.");
@@ -46,7 +74,9 @@ export async function insertCompetitor(ctx: MutationCtx, args: CompetitorInput) 
         q.eq("tournamentId", args.tournamentId).eq("userId", args.userId),
       )
       .unique();
-    if (existingParticipant) throw new Error("This registered user is already a participant in the tournament.");
+    if (existingParticipant) {
+      throw new ConvexError("This Arena account has already been added to this tournament. Clear the selected account to add a different player.");
+    }
   }
 
   let teamId = args.teamId;
@@ -86,7 +116,7 @@ export async function insertCompetitor(ctx: MutationCtx, args: CompetitorInput) 
     if (starters.length !== rules.teamSize) throw new Error(`VALORANT teams require exactly ${rules.teamSize} starting players.`);
   }
 
-  return await ctx.db.insert("participants", {
+  const participantId = await ctx.db.insert("participants", {
     userId: args.userId,
     name: args.name,
     tournamentId: args.tournamentId,
@@ -104,6 +134,9 @@ export async function insertCompetitor(ctx: MutationCtx, args: CompetitorInput) 
     registrationStatus: "approved",
     checkedIn: false,
   });
+  const participant = await ctx.db.get("participants", participantId);
+  if (participant) await ensureProvisionalRanking(ctx, participant, selectedGame);
+  return participantId;
 }
 
 export const create = mutation({

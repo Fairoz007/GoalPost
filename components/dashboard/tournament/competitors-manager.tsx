@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { Mail, Plus, Send, Shield, Trash2, UserRound, Users, X } from 'lucide-react'
 import { api } from '@/convex/_generated/api'
+import { ConvexError } from 'convex/values'
 import type { Id } from '@/convex/_generated/dataModel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -68,6 +69,7 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
   const selectHistorical = (participantId: string | null) => {
     if (!participantId) return
     setSelectedHistoryId(participantId)
+    setSelectedUserId('')
     const competitor = historicalCompetitors.find((item) => item._id === participantId)
     if (!competitor) return
     setName(competitor.name)
@@ -81,6 +83,7 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
   const selectRegisteredUser = (userId: string | null) => {
     if (!userId) return
     setSelectedUserId(userId)
+    setSelectedHistoryId('')
     const user = directory?.find((item) => item._id === userId)
     if (user?.name) setName(user.name)
   }
@@ -101,6 +104,13 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
     setPlayers(['', '', '', ''])
     setSubstitute('')
     setCreateError('')
+  }
+
+  const createErrorMessage = (error: unknown) => {
+    if (error instanceof ConvexError && typeof error.data === 'string') return error.data
+    return error instanceof Error
+      ? error.message.replace(/^Uncaught Error: /, '')
+      : `Could not add ${isValorant ? 'team' : 'player'}.`
   }
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -126,7 +136,7 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
       }
       clearForm()
     } catch (error) {
-      setCreateError(error instanceof Error ? error.message.replace(/^Uncaught Error: /, '') : `Could not add ${isValorant ? 'team' : 'player'}.`)
+      setCreateError(createErrorMessage(error))
     } finally {
       setSaving(false)
     }
@@ -170,7 +180,9 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
       <h2 className="mt-5 font-display text-2xl font-bold uppercase">Add {isValorant ? 'team' : 'player'}</h2>
       <p className="mt-1 text-sm text-muted-foreground">Select a previous competitor or enter a new one.</p>
 
-      {directory && directory.length > 0 && <div className="mt-6"><Field label="Registered Arena account"><Select value={selectedUserId} onValueChange={selectRegisteredUser}><SelectTrigger className="w-full"><SelectDisplay value={directory.find((user) => user._id === selectedUserId)?.name || directory.find((user) => user._id === selectedUserId)?.email || ''} placeholder={`Select registered ${isValorant ? 'captain' : 'player'}`} /></SelectTrigger><SelectContent>{directory.map((user) => <SelectItem key={user._id} value={user._id}>{user.name || 'Arena user'} · {user.email}</SelectItem>)}</SelectContent></Select></Field></div>}
+      {directory && directory.length > 0 && <div className="mt-6"><Field label="Registered Arena account (optional)"><Select value={selectedUserId} onValueChange={selectRegisteredUser}><SelectTrigger className="w-full"><SelectDisplay value={directory.find((user) => user._id === selectedUserId)?.name || directory.find((user) => user._id === selectedUserId)?.email || ''} placeholder={`Link registered ${isValorant ? 'captain' : 'player'}`} /></SelectTrigger><SelectContent>{directory.map((user) => <SelectItem key={user._id} value={user._id}>{user.name || 'Arena user'} · {user.email}</SelectItem>)}</SelectContent></Select></Field></div>}
+
+      {selectedUserId && <div className="mt-2 flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-400"><span>This player will be linked to the selected Arena account.</span><button type="button" className="font-bold uppercase tracking-wider hover:text-white" onClick={() => setSelectedUserId('')}>Clear</button></div>}
 
       {historicalCompetitors.length > 0 && <div className="mt-6 space-y-3">
         <Field label="Quick import from previous tournaments">
@@ -183,7 +195,7 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
       </div>}
 
       <div className="mt-6 space-y-4">
-        <Field label={isValorant ? 'Team name' : 'Player name'}><Input value={name} onChange={(event) => setName(event.target.value)} required /></Field>
+        <Field label={isValorant ? 'Team name' : 'Player name'}><Input value={name} onChange={(event) => { setName(event.target.value); if (selectedUserId) setSelectedUserId(''); if (selectedHistoryId) setSelectedHistoryId('') }} required /></Field>
         <Field label="Country"><Select value={countryCode} onValueChange={(value) => setCountryCode((value ?? '').toUpperCase())} required><SelectTrigger className="w-full"><SelectDisplay value={countryName(countryCode)} placeholder="Choose a country" /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map((country) => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}</SelectContent></Select></Field>
         {isValorant && <>
           <Field label="Captain"><Input value={captain} onChange={(event) => setCaptain(event.target.value)} required /></Field>

@@ -4,6 +4,7 @@ import { gameId, matchStatus, valorantMatchMode } from "./schema";
 import { isKnockoutFormat, isKnockoutMatch, rulesFor, type GameModuleId } from "./gameModules";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireTournamentAdmin } from "./tournamentAuth";
+import { competitorRankingKey } from "./participants";
 
 type DbCtx = QueryCtx | MutationCtx;
 
@@ -133,8 +134,9 @@ async function insertDoubleEliminationWave(
 }
 
 async function updateRating(ctx: MutationCtx, participant: Doc<"participants">, game: GameModuleId, score: number, expected: number) {
-  const key = participant._id;
-  const existing = await ctx.db.query("rankings").withIndex("by_competitorKey", (q) => q.eq("competitorKey", key)).unique();
+  const key = competitorRankingKey(participant);
+  const stable = await ctx.db.query("rankings").withIndex("by_competitorKey", (q) => q.eq("competitorKey", key)).unique();
+  const existing = stable ?? await ctx.db.query("rankings").withIndex("by_competitorKey", (q) => q.eq("competitorKey", participant._id)).unique();
   const oldRating = existing?.rating ?? 1000;
   const rating = Math.round(oldRating + 32 * (score - expected));
   const patch = {
@@ -155,8 +157,10 @@ async function updateRating(ctx: MutationCtx, participant: Doc<"participants">, 
 }
 
 async function rateResult(ctx: MutationCtx, first: Doc<"participants">, second: Doc<"participants">, game: GameModuleId, firstScore: number, secondScore: number) {
-  const firstRank = await ctx.db.query("rankings").withIndex("by_competitorKey", (q) => q.eq("competitorKey", first._id)).unique();
-  const secondRank = await ctx.db.query("rankings").withIndex("by_competitorKey", (q) => q.eq("competitorKey", second._id)).unique();
+  const [firstRank, secondRank] = await Promise.all([
+    ctx.db.query("rankings").withIndex("by_competitorKey", (q) => q.eq("competitorKey", competitorRankingKey(first))).unique(),
+    ctx.db.query("rankings").withIndex("by_competitorKey", (q) => q.eq("competitorKey", competitorRankingKey(second))).unique(),
+  ]);
   const rating1 = firstRank?.rating ?? 1000, rating2 = secondRank?.rating ?? 1000;
   const expected1 = 1 / (1 + 10 ** ((rating2 - rating1) / 400));
   const actual1 = firstScore === secondScore ? 0.5 : firstScore > secondScore ? 1 : 0;
@@ -176,7 +180,7 @@ async function crownChampion(ctx: MutationCtx, tournament: Doc<"tournaments">, w
     winnerKind: winner.kind ?? (selectedGame === "valorant" ? "team" : "player"),
     countryCode: winner.countryCode, completedAt: Date.now(),
   });
-  const ranking = await ctx.db.query("rankings").withIndex("by_competitorKey", (q) => q.eq("competitorKey", winner._id)).unique();
+  const ranking = await ctx.db.query("rankings").withIndex("by_competitorKey", (q) => q.eq("competitorKey", competitorRankingKey(winner))).unique();
   if (ranking) await ctx.db.patch(ranking._id, { tournamentsWon: ranking.tournamentsWon + 1, updatedAt: Date.now() });
   await ctx.db.patch(tournament._id, { status: "Completed", currentStage: "Champion" });
 }
@@ -281,6 +285,44 @@ export const create = mutation({
 export const setStatus = mutation({
   args: { matchId: v.id("matches"), status: matchStatus, adminCode: v.optional(v.string()) }, returns: v.null(),
   handler: async (ctx, args) => { const match = await ctx.db.get("matches", args.matchId); if (!match) throw new Error("Match not found."); await requireTournamentAdmin(ctx, match.tournamentId, args.adminCode); await ctx.db.patch(args.matchId, { status: args.status }); return null; },
+});
+
+function parseYouTubeVideoId(value: string) {
+  const input = value.trim();
+  if (!input) return null;
+  let url: URL;
+  try {
+    url = new URL(input.startsWith("http://") || input.startsWith("https://") ? input : `https://${input}`);
+  } catch {
+    throw new Error("Enter a valid YouTube video URL.");
+  }
+  const host = url.hostname.toLowerCase().replace(/^www\./, "");
+  let videoId: string | null = null;
+  if (host === "youtu.be") videoId = url.pathname.split("/").filter(Boolean)[0] ?? null;
+  if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
+    if (url.pathname === "/watch") videoId = url.searchParams.get("v");
+    else {
+      const [kind, id] = url.pathname.split("/").filter(Boolean);
+      if (["embed", "live", "shorts"].includes(kind)) videoId = id ?? null;
+    }
+  }
+  if (!videoId || !/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
+    throw new Error("Use a YouTube watch, Shorts, live, or youtu.be video URL.");
+  }
+  return videoId;
+}
+
+export const setYouTubeVideo = mutation({
+  args: { matchId: v.id("matches"), videoUrl: v.string(), adminCode: v.optional(v.string()) },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => {
+    const match = await ctx.db.get("matches", args.matchId);
+    if (!match) throw new Error("Match not found.");
+    await requireTournamentAdmin(ctx, match.tournamentId, args.adminCode);
+    const youtubeVideoId = parseYouTubeVideoId(args.videoUrl);
+    await ctx.db.patch(match._id, { youtubeVideoId: youtubeVideoId ?? undefined });
+    return youtubeVideoId;
+  },
 });
 
 export const updateScore = mutation({

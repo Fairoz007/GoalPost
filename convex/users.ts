@@ -63,9 +63,18 @@ export const listDirectory = query({
     if (!tournament || tournament.ownerToken !== identity.tokenIdentifier) {
       throw new Error("You do not have permission to view the user directory for this tournament.");
     }
-    const users = await ctx.db.query("users").order("desc").take(250);
+    const [users, participants] = await Promise.all([
+      ctx.db.query("users").order("desc").take(250),
+      ctx.db
+        .query("participants")
+        .withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.tournamentId))
+        .take(128),
+    ]);
+    const participatingUserIds = new Set(
+      participants.flatMap((participant) => participant.userId ? [participant.userId] : []),
+    );
     return users
-      .filter((user): user is typeof user & { email: string } => Boolean(user.email))
+      .filter((user): user is typeof user & { email: string } => Boolean(user.email) && !participatingUserIds.has(user._id))
       .map((user) => ({ _id: user._id, name: user.name, email: user.email, imageUrl: user.imageUrl }));
   },
 });

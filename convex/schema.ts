@@ -107,6 +107,7 @@ export default defineSchema({
   })
     .index("by_tournamentId", ["tournamentId"])
     .index("by_tournamentId_and_userId", ["tournamentId", "userId"])
+    .index("by_gameId", ["gameId"])
     .index("by_groupId", ["groupId"])
     .index("by_teamId", ["teamId"])
     .index("by_slug", ["slug"]),
@@ -150,6 +151,7 @@ export default defineSchema({
     bracketPosition: v.optional(v.number()),
     bracketKind: v.optional(v.union(v.literal("upper"), v.literal("lower"), v.literal("grand_final"))),
     bestOf: v.optional(v.number()),
+    youtubeVideoId: v.optional(v.string()),
     winnerId: v.optional(v.id("participants")),
     nextMatchId: v.optional(v.id("matches")),
   })

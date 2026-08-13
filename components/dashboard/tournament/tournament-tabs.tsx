@@ -23,7 +23,7 @@ export function TournamentTabs({ tournamentId, format }: TournamentTabsProps) {
     { id: "standings", label: "Standings" },
     { id: "knockout", label: "Knockout", hidden: !hasKnockout },
     { id: "statistics", label: "Statistics" },
-    { id: "media", label: "OBS Overlay" },
+    { id: "media", label: "Stream Studio" },
     { id: "settings", label: "Settings" }
   ];
 
