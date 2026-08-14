@@ -60,14 +60,14 @@ async function ensureProvisionalRanking(ctx: MutationCtx, participant: Doc<"part
 
 export async function insertCompetitor(ctx: MutationCtx, args: CompetitorInput) {
   const tournament = await ctx.db.get("tournaments", args.tournamentId);
-  if (!tournament) throw new Error("Tournament not found.");
+  if (!tournament) throw new ConvexError("Tournament not found.");
   const selectedGame = (tournament.gameId ?? args.gameId ?? "efootball") as GameModuleId;
   const rules = rulesFor(selectedGame);
-  if (args.gameId && args.gameId !== selectedGame) throw new Error("Competitor game does not match the tournament game.");
+  if (args.gameId && args.gameId !== selectedGame) throw new ConvexError("Competitor game does not match the tournament game.");
 
   if (args.userId) {
     const user = await ctx.db.get("users", args.userId);
-    if (!user) throw new Error("The selected registered user no longer exists.");
+    if (!user) throw new ConvexError("The selected registered user no longer exists.");
     const existingParticipant = await ctx.db
       .query("participants")
       .withIndex("by_tournamentId_and_userId", (q) =>
@@ -83,17 +83,17 @@ export async function insertCompetitor(ctx: MutationCtx, args: CompetitorInput) 
   if (teamId) {
     const [identity, team] = await Promise.all([requireIdentity(ctx), ctx.db.get("teams", teamId)]);
     if (!team || team.ownerToken !== identity.tokenIdentifier) {
-      throw new Error("You do not have permission to use this team.");
+      throw new ConvexError("You do not have permission to use this team.");
     }
   }
   if (selectedGame === "valorant" && !teamId) {
     const identity = await requireIdentity(ctx);
     const roster = args.roster ?? [];
     const starters = roster.filter((member) => member.role === "captain" || member.role === "player");
-    if (starters.length !== rules.teamSize) throw new Error(`VALORANT teams require exactly ${rules.teamSize} starting players.`);
-    if (roster.length > 8) throw new Error("A VALORANT roster can contain at most 8 members including substitutes and coach.");
+    if (starters.length !== rules.teamSize) throw new ConvexError(`VALORANT teams require exactly ${rules.teamSize} starting players.`);
+    if (roster.length > 8) throw new ConvexError("A VALORANT roster can contain at most 8 members including substitutes and coach.");
     const captain = args.captain ?? roster.find((member) => member.role === "captain")?.displayName;
-    if (!captain) throw new Error("A VALORANT team captain is required.");
+    if (!captain) throw new ConvexError("A VALORANT team captain is required.");
     const baseSlug = (args.slug || args.name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
     const existing = await ctx.db.query("teams").withIndex("by_slug", (q) => q.eq("slug", baseSlug)).unique();
     const slug = existing ? `${baseSlug}-${Date.now().toString(36)}` : baseSlug;
@@ -113,7 +113,7 @@ export async function insertCompetitor(ctx: MutationCtx, args: CompetitorInput) 
   if (selectedGame === "valorant" && teamId) {
     const members = await ctx.db.query("teamMembers").withIndex("by_teamId", (q) => q.eq("teamId", teamId)).take(16);
     const starters = members.filter((member) => member.role === "captain" || member.role === "player");
-    if (starters.length !== rules.teamSize) throw new Error(`VALORANT teams require exactly ${rules.teamSize} starting players.`);
+    if (starters.length !== rules.teamSize) throw new ConvexError(`VALORANT teams require exactly ${rules.teamSize} starting players.`);
   }
 
   const participantId = await ctx.db.insert("participants", {
@@ -197,11 +197,11 @@ export const assignToGroup = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const participant = await ctx.db.get("participants", args.participantId);
-    if (!participant) throw new Error("Participant not found.");
+    if (!participant) throw new ConvexError("Participant not found.");
     await requireTournamentAdmin(ctx, participant.tournamentId, args.adminCode);
     if (args.groupId) {
       const group = await ctx.db.get("groups", args.groupId);
-      if (!group || group.tournamentId !== participant.tournamentId) throw new Error("Group does not belong to this tournament.");
+      if (!group || group.tournamentId !== participant.tournamentId) throw new ConvexError("Group does not belong to this tournament.");
     }
     await ctx.db.patch(args.participantId, { groupId: args.groupId });
     return null;
@@ -211,11 +211,11 @@ export const assignToGroup = mutation({
 export const setCheckIn = mutation({
   args: { participantId: v.id("participants"), checkedIn: v.boolean(), adminCode: v.optional(v.string()) },
   returns: v.null(),
-  handler: async (ctx, args) => { const participant = await ctx.db.get("participants", args.participantId); if (!participant) throw new Error("Participant not found."); await requireTournamentAdmin(ctx, participant.tournamentId, args.adminCode); await ctx.db.patch(args.participantId, { checkedIn: args.checkedIn }); return null; },
+  handler: async (ctx, args) => { const participant = await ctx.db.get("participants", args.participantId); if (!participant) throw new ConvexError("Participant not found."); await requireTournamentAdmin(ctx, participant.tournamentId, args.adminCode); await ctx.db.patch(args.participantId, { checkedIn: args.checkedIn }); return null; },
 });
 
 export const remove = mutation({
   args: { id: v.id("participants"), adminCode: v.optional(v.string()) },
   returns: v.null(),
-  handler: async (ctx, args) => { const participant = await ctx.db.get("participants", args.id); if (!participant) throw new Error("Participant not found."); await requireTournamentAdmin(ctx, participant.tournamentId, args.adminCode); await ctx.db.delete(args.id); return null; },
+  handler: async (ctx, args) => { const participant = await ctx.db.get("participants", args.id); if (!participant) throw new ConvexError("Participant not found."); await requireTournamentAdmin(ctx, participant.tournamentId, args.adminCode); await ctx.db.delete(args.id); return null; },
 });

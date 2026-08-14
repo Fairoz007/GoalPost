@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
@@ -139,7 +140,11 @@ export function TournamentDetail({
       setSubmitted(true);
       setRegisterCountry("");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Registration failed.");
+      if (cause instanceof ConvexError) {
+        setError(typeof cause.data === "string" ? cause.data : "Registration failed.");
+      } else {
+        setError(cause instanceof Error ? cause.message : "Registration failed.");
+      }
     }
   };
   return (
