@@ -15,7 +15,7 @@ export function SiteFooter() {
           <Link href="/tournaments">Tournaments</Link>
           <Link href="/games">Games</Link>
           <Link href="/rankings">Rankings</Link>
-          <Link href="/dashboard">Organizer Portal</Link>
+          <Link href="/dashboard/tournaments" prefetch={false}>Organizer Portal</Link>
         </nav>
       </div>
       <div className="border-t border-border py-5 text-center text-xs text-muted-foreground">

@@ -110,30 +110,10 @@ export function TournamentDetail({
     () => new Map((participants ?? []).map((p) => [p._id, p])),
     [participants],
   );
-  if (tournament === undefined)
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-20">
-        <div className="h-80 animate-pulse rounded-2xl bg-card" />
-      </div>
-    );
-  if (tournament === null)
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-32 text-center">
-        <Trophy className="mx-auto size-10 text-muted-foreground" />
-        <h1 className="mt-5 font-display text-4xl font-bold uppercase">
-          Tournament not found
-        </h1>
-      </div>
-    );
-  const game = getGameModule(tournament.gameId);
-  const registrationAvailable = tournament.registrationEnabled !== false && !["Draft", "Completed", "Cancelled"].includes(tournament.status);
-  const completed = (matches ?? []).filter(
-    (match) => match.status === "Completed",
-  );
-  const live = (matches ?? []).filter((match) => match.status === "Live");
-  const scheduled = (matches ?? []).filter(
-    (match) => match.status === "Scheduled",
-  );
+  const registrationAvailable = tournament
+    ? tournament.registrationEnabled !== false &&
+      !["Draft", "Completed", "Cancelled"].includes(tournament.status)
+    : false;
 
   const currentPath =
     pathname || (slug ? `/tournament/${slug}` : id ? `/tournaments/${id}` : "/");
@@ -151,6 +131,30 @@ export function TournamentDetail({
       setRegistering(true);
     }
   }, [registerParam, isAuthenticated, registrationAvailable]);
+
+  if (tournament === undefined)
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-20">
+        <div className="h-80 animate-pulse rounded-2xl bg-card" />
+      </div>
+    );
+  if (tournament === null)
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-32 text-center">
+        <Trophy className="mx-auto size-10 text-muted-foreground" />
+        <h1 className="mt-5 font-display text-4xl font-bold uppercase">
+          Tournament not found
+        </h1>
+      </div>
+    );
+  const game = getGameModule(tournament.gameId);
+  const completed = (matches ?? []).filter(
+    (match) => match.status === "Completed",
+  );
+  const live = (matches ?? []).filter((match) => match.status === "Live");
+  const scheduled = (matches ?? []).filter(
+    (match) => match.status === "Scheduled",
+  );
   const submitRegistration = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!tournamentId) return;
