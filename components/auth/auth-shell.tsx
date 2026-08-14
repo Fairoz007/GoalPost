@@ -4,9 +4,11 @@ import { Logo } from "@/components/site/logo";
 
 export function AuthShell({
   mode,
+  backUrl = "/",
   children,
 }: {
   mode: "sign-in" | "sign-up";
+  backUrl?: string;
   children: React.ReactNode;
 }) {
   const signingIn = mode === "sign-in";
@@ -62,7 +64,7 @@ export function AuthShell({
             <Link href="/" className="lg:hidden" aria-label="D-One Arena home">
               <Logo />
             </Link>
-            <Link href="/" className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm text-white/55 transition hover:bg-white/5 hover:text-white">
+            <Link href={backUrl} className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm text-white/55 transition hover:bg-white/5 hover:text-white">
               <ArrowLeft className="size-4" aria-hidden="true" />
               Back to Arena
             </Link>

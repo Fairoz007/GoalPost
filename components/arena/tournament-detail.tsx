@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
@@ -90,7 +91,17 @@ export function TournamentDetail({
   );
   const register = useMutation(api.arena.register);
   const { isAuthenticated } = useConvexAuth();
-  const [tab, setTab] = useState<(typeof tabs)[number]>("Overview");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams?.get("tab");
+  const registerParam = searchParams?.get("register") === "true";
+
+  const [tab, setTab] = useState<(typeof tabs)[number]>(() => {
+    if (tabParam && (tabs as readonly string[]).includes(tabParam)) {
+      return tabParam as (typeof tabs)[number];
+    }
+    return registerParam ? "Registration" : "Overview";
+  });
   const [registering, setRegistering] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
@@ -123,6 +134,23 @@ export function TournamentDetail({
   const scheduled = (matches ?? []).filter(
     (match) => match.status === "Scheduled",
   );
+
+  const currentPath =
+    pathname || (slug ? `/tournament/${slug}` : id ? `/tournaments/${id}` : "/");
+  const signInUrlHero = `/sign-in?redirect_url=${encodeURIComponent(`${currentPath}?register=true`)}`;
+  const signInUrlRegistration = `/sign-in?redirect_url=${encodeURIComponent(`${currentPath}?tab=Registration&register=true`)}`;
+
+  useEffect(() => {
+    if (tabParam && (tabs as readonly string[]).includes(tabParam)) {
+      setTab(tabParam as (typeof tabs)[number]);
+    }
+  }, [tabParam]);
+
+  useEffect(() => {
+    if (registerParam && isAuthenticated && registrationAvailable) {
+      setRegistering(true);
+    }
+  }, [registerParam, isAuthenticated, registrationAvailable]);
   const submitRegistration = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!tournamentId) return;
@@ -220,7 +248,7 @@ export function TournamentDetail({
           </div>
           {registrationAvailable && (
             isAuthenticated ? <Button onClick={() => setRegistering(true)} size="lg" className="mt-8">Register free <ArrowRight className="size-4" /></Button>
-              : <Link href="/sign-in" className={cn(buttonVariants({ size: "lg" }), "mt-8")}>Sign in to register <ArrowRight className="size-4" /></Link>
+              : <Link href={signInUrlHero} className={cn(buttonVariants({ size: "lg" }), "mt-8")}>Sign in to register <ArrowRight className="size-4" /></Link>
           )}
         </div>
       </section>
@@ -371,6 +399,7 @@ export function TournamentDetail({
             game={game}
             available={registrationAvailable}
             isAuthenticated={isAuthenticated}
+            signInUrl={signInUrlRegistration}
             onRegister={() => setRegistering(true)}
           />
         )}
@@ -640,12 +669,14 @@ function RegistrationSection({
   game,
   available,
   isAuthenticated,
+  signInUrl,
   onRegister,
 }: {
   tournament: any;
   game: ReturnType<typeof getGameModule>;
   available: boolean;
   isAuthenticated: boolean;
+  signInUrl: string;
   onRegister: () => void;
 }) {
   return (
@@ -665,7 +696,7 @@ function RegistrationSection({
         {!available && <p className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-200">This tournament is not accepting registrations right now. You can still review fixtures, standings, and rules.</p>}
         {available && (isAuthenticated
           ? <Button onClick={onRegister} size="lg" className="mt-7">Register for {game.name}<ArrowRight className="size-4" /></Button>
-          : <Link href="/sign-in" className={cn(buttonVariants({ size: "lg" }), "mt-7")}>Sign in to register<ArrowRight className="size-4" /></Link>)}
+          : <Link href={signInUrl} className={cn(buttonVariants({ size: "lg" }), "mt-7")}>Sign in to register<ArrowRight className="size-4" /></Link>)}
       </div>
       <aside className="rounded-xl border border-border bg-card p-6">
         <p className="text-xs font-bold uppercase tracking-wider text-primary">

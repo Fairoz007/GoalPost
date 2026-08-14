@@ -4,12 +4,16 @@ import { Sidebar } from "@/components/dashboard/sidebar";
 import { AuthLoading, Authenticated, Unauthenticated } from "convex/react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const signInHref = pathname ? `/sign-in?redirect_url=${encodeURIComponent(pathname)}` : "/sign-in";
+
   return (
     <>
       <AuthLoading><div className="grid min-h-screen place-items-center text-sm text-muted-foreground">Preparing your secure workspace…</div></AuthLoading>
-      <Unauthenticated><div className="grid min-h-screen place-items-center"><Button render={<Link href="/sign-in" />} size="lg">Sign in to continue</Button></div></Unauthenticated>
+      <Unauthenticated><div className="grid min-h-screen place-items-center"><Button render={<Link href={signInHref} />} size="lg">Sign in to continue</Button></div></Unauthenticated>
       <Authenticated>
         <div className="flex h-screen overflow-hidden bg-background">
           <Sidebar />

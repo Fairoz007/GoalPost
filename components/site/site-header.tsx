@@ -19,6 +19,15 @@ const nav = [
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const redirectParam =
+    pathname &&
+    pathname !== "/" &&
+    !pathname.startsWith("/sign-in") &&
+    !pathname.startsWith("/sign-up")
+      ? `?redirect_url=${encodeURIComponent(pathname)}`
+      : "";
+  const signInHref = `/sign-in${redirectParam}`;
+  const signUpHref = `/sign-up${redirectParam}`;
   return (
     <header className="sticky top-0 z-50 border-b border-white/8 bg-background/90 backdrop-blur-xl">
       <div className="mx-auto flex h-[72px] max-w-7xl items-center gap-5 px-4 sm:px-6">
@@ -59,8 +68,8 @@ export function SiteHeader() {
           <ClerkLoaded>
             <div className="flex min-h-11 w-[132px] items-center justify-end gap-2 sm:w-[218px]">
               <Show when="signed-out">
-                <Link href="/sign-in" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "min-h-11")}>Sign in</Link>
-                <Link href="/sign-up" className={cn(buttonVariants({ size: "sm" }), "hidden min-h-11 sm:inline-flex")}>Create account</Link>
+                <Link href={signInHref} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "min-h-11")}>Sign in</Link>
+                <Link href={signUpHref} className={cn(buttonVariants({ size: "sm" }), "hidden min-h-11 sm:inline-flex")}>Create account</Link>
               </Show>
               <Show when="signed-in">
                 <Link href="/dashboard/tournaments" className={cn(buttonVariants({ size: "sm" }), "min-h-11")}>Dashboard</Link>
