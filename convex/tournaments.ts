@@ -11,7 +11,7 @@ const publicTournament = (tournament: Doc<"tournaments">) => {
   return { ...rest, gameId: rest.gameId ?? "efootball", hasAdminCode: Boolean(adminCode) };
 };
 
-const DEFAULT_DISCORD_URL = "https://discord.gg/cD9PSWaSW";
+const DEFAULT_DISCORD_URL = "https://discord.gg/kbEtE5h6nt";
 const DEFAULT_REGISTRATION_INSTRUCTIONS = "Your place is confirmed automatically after registration. Please join the Discord for check-in, fixtures, results, and announcements.";
 
 function defaultTournamentRules(format: Doc<"tournaments">["format"]) {

@@ -23,7 +23,7 @@ type FormState = {
   registrationEnabled: boolean;
 };
 
-const DISCORD_URL = "https://discord.gg/cD9PSWaSW";
+const DISCORD_URL = "https://discord.gg/kbEtE5h6nt";
 const DEFAULT_EFOOTBALL_RULES = `Group stage: every player faces every other player once. The top four qualify for the semifinals (1st vs 4th and 2nd vs 3rd); the winners play the final.
 
 Check in on Discord at least 15 minutes before your scheduled match.
