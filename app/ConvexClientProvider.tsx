@@ -39,7 +39,9 @@ function UserSync() {
         .then((claimed) => {
           if (claimed) window.localStorage.removeItem(key);
         })
-        .catch(() => undefined);
+        .catch(() => {
+          window.localStorage.removeItem(key);
+        });
     }
   }, [claimLegacy, ensureCurrent]);
   return null;

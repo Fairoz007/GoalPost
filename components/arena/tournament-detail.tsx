@@ -151,6 +151,7 @@ export function TournamentDetail({
     pathname || (slug ? `/tournament/${slug}` : id ? `/tournaments/${id}` : "/");
   const signInUrlHero = `/sign-in?redirect_url=${encodeURIComponent(`${currentPath}?register=true`)}`;
   const signInUrlRegistration = `/sign-in?redirect_url=${encodeURIComponent(`${currentPath}?tab=Registration&register=true`)}`;
+  const game = getGameModule(tournament?.gameId);
 
   useEffect(() => {
     if (tabParam && (tabs as readonly string[]).includes(tabParam)) {
@@ -163,6 +164,16 @@ export function TournamentDetail({
       setRegistering(true);
     }
   }, [registerParam, isAuthenticated, registrationAvailable]);
+
+  useEffect(() => {
+    if (profile && tournament) {
+      if (tournament.gameId === "valorant" && profile.valorantId) {
+        setGameIdInput(profile.valorantId);
+      } else if (profile.efootballId) {
+        setGameIdInput(profile.efootballId);
+      }
+    }
+  }, [profile, tournament]);
 
   if (tournament === undefined)
     return (
@@ -179,17 +190,6 @@ export function TournamentDetail({
         </h1>
       </div>
     );
-  const game = getGameModule(tournament.gameId);
-
-  useEffect(() => {
-    if (profile) {
-      if (game.id === "efootball" && profile.efootballId) {
-        setGameIdInput(profile.efootballId);
-      } else if (game.id === "valorant" && profile.valorantId) {
-        setGameIdInput(profile.valorantId);
-      }
-    }
-  }, [profile, game.id]);
 
   const completed = (matches ?? []).filter(
     (match) => match.status === "Completed",
