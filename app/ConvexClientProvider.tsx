@@ -10,7 +10,11 @@ import type { Id } from "@/convex/_generated/dataModel";
 
 import { ProfileOnboardingDialog } from "@/components/auth/profile-onboarding-dialog";
 
-const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+const convexUrl =
+  process.env.NEXT_PUBLIC_CONVEX_URL ||
+  "https://wary-lemming-973.convex.cloud";
+
+const convex = new ConvexReactClient(convexUrl);
 
 export function ConvexClientProvider({ children }: { children: ReactNode }) {
   return (
