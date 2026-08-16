@@ -89,6 +89,24 @@ export function SpinWheel({
   const [lastWinner, setLastWinner] = useState<WheelParticipant | null>(null)
   const [removedIds, setRemovedIds] = useState<string[]>([])
   const [recentMatchups, setRecentMatchups] = useState<Array<{ p1: WheelParticipant; p2: WheelParticipant }>>([])
+  const [canvasSize, setCanvasSize] = useState(340)
+
+  useEffect(() => {
+    const updateSize = () => {
+      if (typeof window === 'undefined') return
+      const screenW = window.innerWidth
+      if (screenW < 380) {
+        setCanvasSize(260)
+      } else if (screenW < 500) {
+        setCanvasSize(300)
+      } else {
+        setCanvasSize(340)
+      }
+    }
+    updateSize()
+    window.addEventListener('resize', updateSize)
+    return () => window.removeEventListener('resize', updateSize)
+  }, [])
 
   // Dynamic step: If player1 is not yet chosen, step is 1. If player1 is chosen but player2 is not, step is 2. If both chosen, step is 'done'.
   const currentStep: 'p1' | 'p2' | 'done' = !player1 ? 'p1' : !player2 ? 'p2' : 'done'
@@ -114,7 +132,7 @@ export function SpinWheel({
       if (!ctx) return
 
       const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
-      const size = 360
+      const size = canvasSize
       if (canvas.width !== size * dpr || canvas.height !== size * dpr) {
         canvas.width = size * dpr
         canvas.height = size * dpr

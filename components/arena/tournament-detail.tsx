@@ -566,8 +566,8 @@ export function TournamentDetail({
         )}
       </main>
       {registering && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4">
-          <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-card p-6">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-3 sm:p-4 backdrop-blur-md">
+          <div className="relative my-auto max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-2xl sm:rounded-3xl border border-border bg-card p-5 sm:p-7 shadow-2xl">
             <button
               onClick={() => setRegistering(false)}
               className="absolute right-4 top-4 text-muted-foreground"

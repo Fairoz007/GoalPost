@@ -173,8 +173,8 @@ export function ManualFixtureDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-md">
-      <div className="relative w-full max-w-4xl rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-3 sm:p-4 backdrop-blur-md">
+      <div className="relative my-auto flex max-h-[92dvh] w-full max-w-4xl flex-col rounded-2xl sm:rounded-3xl border border-border bg-card p-4 sm:p-7 shadow-2xl overflow-y-auto">
         {/* Header */}
         <div className="flex flex-col justify-between gap-3 border-b border-border pb-5 sm:flex-row sm:items-center">
           <div>
