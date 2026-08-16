@@ -24,7 +24,6 @@ export function ProfileOnboardingDialog({ forceOpen, onClose }: ProfileOnboardin
   const [gamerTag, setGamerTag] = useState('')
   const [phone, setPhone] = useState('')
   const [countryCode, setCountryCode] = useState('')
-  const [discordTag, setDiscordTag] = useState('')
   const [efootballId, setEfootballId] = useState('')
   const [valorantId, setValorantId] = useState('')
   const [captainName, setCaptainName] = useState('')
@@ -51,7 +50,6 @@ export function ProfileOnboardingDialog({ forceOpen, onClose }: ProfileOnboardin
       setGamerTag(profile.gamerTag || profile.name || '')
       setPhone(profile.phone || '')
       setCountryCode(profile.countryCode || '')
-      setDiscordTag(profile.discordTag || '')
       setEfootballId(profile.efootballId || '')
       setValorantId(profile.valorantId || '')
       setCaptainName(profile.captainName || profile.gamerTag || profile.name || '')
@@ -80,7 +78,6 @@ export function ProfileOnboardingDialog({ forceOpen, onClose }: ProfileOnboardin
         gamerTag: cleanGamerTag,
         phone: cleanPhone,
         countryCode: cleanCountry,
-        discordTag: discordTag.trim() || undefined,
         efootballId: efootballId.trim() || undefined,
         valorantId: valorantId.trim() || undefined,
         captainName: captainName.trim() || cleanGamerTag,
@@ -214,19 +211,6 @@ export function ProfileOnboardingDialog({ forceOpen, onClose }: ProfileOnboardin
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            {/* Discord Tag */}
-            <div>
-              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Discord Tag (Optional)
-              </Label>
-              <Input
-                value={discordTag}
-                onChange={(e) => setDiscordTag(e.target.value)}
-                placeholder="e.g. player#0001"
-                className="mt-1.5 h-10 sm:h-11 text-sm"
-              />
             </div>
           </div>
 
