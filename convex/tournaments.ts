@@ -6,13 +6,36 @@ import { rulesFor, valorantModeRules } from "./gameModules";
 import { codesMatch, generateTournamentAdminCode, requireTournamentAdmin } from "./tournamentAuth";
 import { requireIdentity } from "./model/auth";
 
-const publicTournament = (tournament: Doc<"tournaments">) => {
-  const { adminCode, ownerToken, ...rest } = tournament;
-  return { ...rest, gameId: rest.gameId ?? "efootball", hasAdminCode: Boolean(adminCode) };
-};
-
 const DEFAULT_WHATSAPP_URL = "https://chat.whatsapp.com/DcM0VixkixZ5QBYIXS6TW6?s=cl&p=a&mlu";
 const DEFAULT_REGISTRATION_INSTRUCTIONS = "Your place is confirmed automatically after registration. Please join the WhatsApp group for check-in, fixtures, results, and announcements.";
+
+const publicTournament = (tournament: Doc<"tournaments">) => {
+  const { adminCode, ownerToken, ...rest } = tournament;
+  const rawUrl = rest.registrationGroupUrl?.trim() ?? "";
+  const registrationGroupUrl =
+    rawUrl && !rawUrl.toLowerCase().includes("discord") && rawUrl.startsWith("http")
+      ? rawUrl
+      : DEFAULT_WHATSAPP_URL;
+
+  let registrationInstructions = rest.registrationInstructions;
+  if (registrationInstructions && registrationInstructions.toLowerCase().includes("discord")) {
+    registrationInstructions = registrationInstructions.replace(/discord/gi, "WhatsApp");
+  }
+
+  let rules = rest.rules;
+  if (rules && rules.toLowerCase().includes("discord")) {
+    rules = rules.replace(/discord/gi, "WhatsApp");
+  }
+
+  return {
+    ...rest,
+    gameId: rest.gameId ?? "efootball",
+    hasAdminCode: Boolean(adminCode),
+    registrationGroupUrl,
+    registrationInstructions: registrationInstructions ?? DEFAULT_REGISTRATION_INSTRUCTIONS,
+    rules: rules ?? defaultTournamentRules(rest.format),
+  };
+};
 
 function defaultTournamentRules(format: Doc<"tournaments">["format"]) {
   const progression = format === "Single Group + Finals"

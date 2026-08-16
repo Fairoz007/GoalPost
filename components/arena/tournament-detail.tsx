@@ -43,6 +43,14 @@ const tabs = [
 ] as const;
 const WHATSAPP_URL = "https://chat.whatsapp.com/DcM0VixkixZ5QBYIXS6TW6?s=cl&p=a&mlu";
 
+function getRegistrationGroupUrl(url?: string | null) {
+  const trimmed = url?.trim() ?? "";
+  if (!trimmed || trimmed.toLowerCase().includes("discord") || !trimmed.startsWith("http")) {
+    return WHATSAPP_URL;
+  }
+  return trimmed;
+}
+
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -409,7 +417,7 @@ export function TournamentDetail({
                       buttonVariants({ size: "lg" }),
                       "shrink-0 gap-2 font-semibold bg-[#25D366] hover:bg-[#20bd5a] text-black border-none shadow-md shadow-[#25D366]/20",
                     )}
-                    href={tournament.registrationGroupUrl || WHATSAPP_URL}
+                    href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -625,7 +633,7 @@ export function TournamentDetail({
                     buttonVariants({ size: "lg" }),
                     "mt-5 w-full gap-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold text-base shadow-lg shadow-[#25D366]/25 border-none h-12",
                   )}
-                  href={tournament.registrationGroupUrl || WHATSAPP_URL}
+                  href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -950,7 +958,7 @@ function RegistrationSection({
             buttonVariants({ variant: "outline" }),
             "mt-5 w-full gap-2 border-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/10 hover:text-[#25D366]",
           )}
-          href={tournament.registrationGroupUrl || WHATSAPP_URL}
+          href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
           target="_blank"
           rel="noreferrer"
         >
