@@ -43,6 +43,21 @@ export default defineSchema({
     email: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
     lastSeenAt: v.number(),
+    gamerTag: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    countryCode: v.optional(v.string()),
+    discordTag: v.optional(v.string()),
+    captainName: v.optional(v.string()),
+    defaultRoster: v.optional(
+      v.array(
+        v.object({
+          displayName: v.string(),
+          role: v.union(v.literal("captain"), v.literal("player"), v.literal("coach"), v.literal("substitute")),
+          countryCode: v.optional(v.string()),
+        }),
+      ),
+    ),
+    profileCompleted: v.optional(v.boolean()),
   })
     .index("by_tokenIdentifier", ["tokenIdentifier"])
     .index("by_email", ["email"]),

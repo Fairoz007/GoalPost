@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Logo } from "./logo";
+import { Cloud } from "lucide-react";
+
 export function SiteFooter() {
   return (
     <footer className="border-t border-border bg-[#090909]">
@@ -7,9 +9,16 @@ export function SiteFooter() {
         <div>
           <Logo />
           <p className="mt-4 max-w-sm text-sm leading-6 text-muted-foreground">
-            The competitive home for players, teams, and tournament organizers.
-            Built by DoneStudio.
+            The competitive esports home for eFootball and VALORANT tournaments.
+            Powered by PowerWex Cloud.
           </p>
+          <div className="mt-3 flex items-center gap-2 text-xs text-emerald-400 font-semibold">
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+            </span>
+            <Cloud className="size-3.5" /> PowerWex Cloud Connected
+          </div>
         </div>
         <nav className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted-foreground">
           <Link href="/tournaments">Tournaments</Link>
@@ -19,7 +28,7 @@ export function SiteFooter() {
         </nav>
       </div>
       <div className="border-t border-border py-5 text-center text-xs text-muted-foreground">
-        © 2026 D-One Arena by DoneStudio. Play. Compete. Become Champion.
+        © 2026 PowerWex EG Tournament Cloud. All rights reserved.
       </div>
     </footer>
   );

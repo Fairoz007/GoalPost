@@ -15,9 +15,11 @@ import {
   Flag,
   Radio,
   Shield,
+  Sparkles,
   Trophy,
   Users,
   X,
+  Zap,
 } from "lucide-react";
 import { getGameModule } from "@/lib/game-modules";
 import { Badge } from "@/components/ui/badge";
@@ -89,7 +91,9 @@ export function TournamentDetail({
     api.arena.listAnnouncements,
     tournamentId ? { tournamentId } : "skip",
   );
+  const profile = useQuery(api.users.getProfile);
   const register = useMutation(api.arena.register);
+  const quickRegister = useMutation(api.arena.quickRegister);
   const { isAuthenticated } = useConvexAuth();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -104,6 +108,8 @@ export function TournamentDetail({
   });
   const [registering, setRegistering] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [quickRegistering, setQuickRegistering] = useState(false);
+  const [showFullForm, setShowFullForm] = useState(false);
   const [error, setError] = useState("");
   const [registerCountry, setRegisterCountry] = useState("");
   const byParticipant = useMemo(
@@ -114,6 +120,25 @@ export function TournamentDetail({
     ? tournament.registrationEnabled !== false &&
       !["Draft", "Completed", "Cancelled"].includes(tournament.status)
     : false;
+
+  const handleQuickRegister = async () => {
+    if (!tournamentId) return;
+    setError("");
+    setQuickRegistering(true);
+    try {
+      await quickRegister({ tournamentId });
+      setSubmitted(true);
+      setRegistering(true);
+    } catch (cause) {
+      if (cause instanceof ConvexError) {
+        setError(typeof cause.data === "string" ? cause.data : "Registration failed.");
+      } else {
+        setError(cause instanceof Error ? cause.message : "Registration failed.");
+      }
+    } finally {
+      setQuickRegistering(false);
+    }
+  };
 
   const currentPath =
     pathname || (slug ? `/tournament/${slug}` : id ? `/tournaments/${id}` : "/");
@@ -404,7 +429,10 @@ export function TournamentDetail({
             available={registrationAvailable}
             isAuthenticated={isAuthenticated}
             signInUrl={signInUrlRegistration}
+            profile={profile}
             onRegister={() => setRegistering(true)}
+            onQuickRegister={handleQuickRegister}
+            quickRegistering={quickRegistering}
           />
         )}
         {tab === "Participants" && (
@@ -555,20 +583,86 @@ export function TournamentDetail({
                   Please join the Discord <ArrowRight className="size-4" />
                 </a>
               </div>
+            ) : profile?.profileCompleted && !showFullForm ? (
+              <div className="space-y-5">
+                <p className="text-xs font-bold uppercase tracking-wider text-primary">
+                  ⚡ 1-Click Fast Entry · Secured by Clerk
+                </p>
+                <h2 className="font-display text-3xl font-bold uppercase">
+                  Ready to compete
+                </h2>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Your player profile is verified. Click below to register instantly without re-typing your details.
+                </p>
+
+                <div className="rounded-2xl border border-primary/40 bg-primary/10 p-5 text-left">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
+                    <Zap className="size-4" /> Verified Player Entry
+                  </div>
+                  <h3 className="mt-2 font-display text-2xl font-bold uppercase text-foreground">
+                    {profile.gamerTag || profile.name}
+                  </h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {countryName(profile.countryCode || "")} · {profile.phone} · {profile.email}
+                  </p>
+                  {game.id === "valorant" && (
+                    <p className="mt-2 text-xs font-medium text-primary">
+                      Captain: {profile.captainName || profile.gamerTag || profile.name}
+                    </p>
+                  )}
+                </div>
+
+                {error && <p className="text-sm text-red-400">{error}</p>}
+
+                <Button
+                  size="lg"
+                  className="w-full gap-2 bg-gradient-to-r from-red-600 to-rose-600 font-bold shadow-lg shadow-red-500/20"
+                  onClick={handleQuickRegister}
+                  disabled={quickRegistering}
+                >
+                  <Zap className="size-4" />
+                  {quickRegistering ? "Confirming Registration..." : `⚡ 1-Click Register for ${game.name}`}
+                </Button>
+
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowFullForm(true)}
+                    className="text-xs text-muted-foreground underline hover:text-foreground"
+                  >
+                    Need custom details for this tournament? Edit details
+                  </button>
+                </div>
+              </div>
             ) : (
               <>
-                <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                  Free · Secured by Clerk
-                </p>
-                <h2 className="mt-2 font-display text-3xl font-bold uppercase">
-                  Enter the arena
-                </h2>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-primary">
+                      Free · Secured by Clerk
+                    </p>
+                    <h2 className="mt-1 font-display text-3xl font-bold uppercase">
+                      Enter the arena
+                    </h2>
+                  </div>
+                  {profile?.profileCompleted && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowFullForm(false)}
+                      className="text-xs"
+                    >
+                      <Zap className="size-3 text-primary mr-1" /> Use 1-Click
+                    </Button>
+                  )}
+                </div>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   Your contact details stay private to you and the tournament organizer. Public pages show only competition information.
                 </p>
                 <form onSubmit={submitRegistration} className="mt-6 space-y-4">
                   <Input
                     name="name"
+                    defaultValue={profile?.gamerTag || profile?.name || ""}
                     placeholder={
                       game.id === "valorant" ? "Team name" : "Player name"
                     }
@@ -577,18 +671,20 @@ export function TournamentDetail({
                   <Input
                     name="email"
                     type="email"
+                    defaultValue={profile?.email || ""}
                     placeholder="Contact email"
                     required
                   />
                   <Input
                     name="phone"
                     type="tel"
+                    defaultValue={profile?.phone || ""}
                     placeholder="Phone number"
                     required
                   />
                   <Select
                     name="country"
-                    value={registerCountry}
+                    value={registerCountry || profile?.countryCode || ""}
                     onValueChange={(value) => setRegisterCountry((value ?? "").toUpperCase())}
                     required
                   >
@@ -596,12 +692,12 @@ export function TournamentDetail({
                       <span
                         className={cn(
                           "truncate text-left",
-                          registerCountry
+                          registerCountry || profile?.countryCode
                             ? "text-foreground"
                             : "text-muted-foreground",
                         )}
                       >
-                        {countryName(registerCountry) || "Choose your country"}
+                        {countryName(registerCountry || profile?.countryCode || "") || "Choose your country"}
                       </span>
                     </SelectTrigger>
                     <SelectContent>{COUNTRY_OPTIONS.map((country) => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}</SelectContent>
@@ -613,6 +709,7 @@ export function TournamentDetail({
                       </p>
                       <Input
                         name="captain"
+                        defaultValue={profile?.captainName || profile?.gamerTag || profile?.name || ""}
                         placeholder="Captain / player 1"
                         required
                       />
@@ -674,14 +771,20 @@ function RegistrationSection({
   available,
   isAuthenticated,
   signInUrl,
+  profile,
   onRegister,
+  onQuickRegister,
+  quickRegistering,
 }: {
   tournament: any;
   game: ReturnType<typeof getGameModule>;
   available: boolean;
   isAuthenticated: boolean;
   signInUrl: string;
+  profile?: any;
   onRegister: () => void;
+  onQuickRegister?: () => void;
+  quickRegistering?: boolean;
 }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -699,7 +802,34 @@ function RegistrationSection({
         </p>
         {!available && <p className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-200">This tournament is not accepting registrations right now. You can still review fixtures, standings, and rules.</p>}
         {available && (isAuthenticated
-          ? <Button onClick={onRegister} size="lg" className="mt-7">Register for {game.name}<ArrowRight className="size-4" /></Button>
+          ? profile?.profileCompleted && onQuickRegister
+            ? (
+              <div className="mt-6 space-y-3">
+                <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4 max-w-md">
+                  <p className="text-xs font-bold uppercase text-primary flex items-center gap-1.5">
+                    <Zap className="size-3.5" /> 1-Click Fast Registration Active
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    Player: {profile.gamerTag || profile.name} ({countryName(profile.countryCode)})
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    onClick={onQuickRegister}
+                    size="lg"
+                    disabled={quickRegistering}
+                    className="gap-2 bg-gradient-to-r from-red-600 to-rose-600 font-bold shadow-lg shadow-red-500/20"
+                  >
+                    <Zap className="size-4" />
+                    {quickRegistering ? "Registering..." : `⚡ 1-Click Register for ${game.name}`}
+                  </Button>
+                  <Button onClick={onRegister} variant="outline" size="lg">
+                    Customize Details
+                  </Button>
+                </div>
+              </div>
+            )
+            : <Button onClick={onRegister} size="lg" className="mt-7">Register for {game.name}<ArrowRight className="size-4" /></Button>
           : <Link href={signInUrl} className={cn(buttonVariants({ size: "lg" }), "mt-7")}>Sign in to register<ArrowRight className="size-4" /></Link>)}
       </div>
       <aside className="rounded-xl border border-border bg-card p-6">

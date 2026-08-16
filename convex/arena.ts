@@ -92,12 +92,18 @@ export const getPlayer = query({
 
 export const register = mutation({
   args: {
-    tournamentId: v.id("tournaments"), applicantName: v.string(), applicantEmail: v.string(), phoneNumber: v.string(),
-    teamId: v.optional(v.id("teams")), countryCode: v.optional(v.string()), acceptedRules: v.boolean(),
+    tournamentId: v.id("tournaments"),
+    applicantName: v.string(),
+    applicantEmail: v.string(),
+    phoneNumber: v.string(),
+    teamId: v.optional(v.id("teams")),
+    countryCode: v.optional(v.string()),
+    acceptedRules: v.boolean(),
     captainName: v.optional(v.string()),
     roster: v.optional(v.array(v.object({
       displayName: v.string(),
       role: v.union(v.literal("captain"), v.literal("player"), v.literal("substitute"), v.literal("coach")),
+      countryCode: v.optional(v.string()),
     }))),
   },
   returns: v.id("registrations"),
@@ -106,23 +112,28 @@ export const register = mutation({
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament || tournament.registrationEnabled === false || ["Draft", "Completed", "Cancelled"].includes(tournament.status)) throw new ConvexError("Registration is not available for this tournament.");
     if (!args.acceptedRules) throw new ConvexError("You must accept the tournament rules.");
-    const applicantName = args.applicantName.trim();
-    const applicantEmail = args.applicantEmail.trim().toLowerCase();
-    const phoneNumber = args.phoneNumber.trim();
+    
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
+
+    const applicantName = (args.applicantName || currentUser?.gamerTag || currentUser?.name || "").trim();
+    const applicantEmail = (args.applicantEmail || currentUser?.email || identity.email || "").trim().toLowerCase();
+    const phoneNumber = (args.phoneNumber || currentUser?.phone || "").trim();
+    const countryCode = (args.countryCode || currentUser?.countryCode || "").trim().toUpperCase();
+
     if (!applicantName) throw new ConvexError("Your name is required.");
-    if (!args.countryCode?.trim()) throw new ConvexError("Choose your country.");
+    if (!countryCode) throw new ConvexError("Choose your country.");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(applicantEmail)) throw new ConvexError("Enter a valid email address.");
     if (phoneNumber.replace(/\D/g, "").length < 7) throw new ConvexError("Enter a valid phone number.");
+    
     const selectedGame = tournament.gameId ?? "efootball";
     if (tournament.maxSlots) {
       const participants = await ctx.db.query("participants").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.tournamentId)).take(tournament.maxSlots);
       if (participants.length >= tournament.maxSlots) throw new ConvexError("Registration is not available because this tournament is full.");
     }
     const rules = rulesFor(selectedGame);
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
     const priorRegistration = await ctx.db
       .query("registrations")
       .withIndex("by_ownerToken_and_tournamentId", (q) =>
@@ -132,7 +143,7 @@ export const register = mutation({
     if (priorRegistration && priorRegistration.status !== "rejected") {
       throw new ConvexError("You are already registered for this tournament.");
     }
-    const roster = args.roster ?? [];
+    const roster = args.roster ?? currentUser?.defaultRoster ?? [];
     if (selectedGame === "valorant") {
       const starters = roster.filter((member) => member.role === "captain" || member.role === "player");
       if (starters.length !== rules.teamSize) throw new ConvexError(`VALORANT registration requires exactly ${rules.teamSize} starting players.`);
@@ -146,7 +157,7 @@ export const register = mutation({
       applicantEmail,
       phoneNumber,
       teamId: args.teamId,
-      countryCode: args.countryCode,
+      countryCode,
       acceptedRules: args.acceptedRules,
       captainName: args.captainName,
       gameId: selectedGame,
@@ -160,7 +171,7 @@ export const register = mutation({
       tournamentId: args.tournamentId,
       name: applicantName,
       gameId: selectedGame,
-      countryCode: args.countryCode,
+      countryCode,
       captain: args.captainName,
       teamId: args.teamId,
       roster,
@@ -175,6 +186,107 @@ export const register = mutation({
     if (invitation?.status === "pending") {
       await ctx.db.patch(invitation._id, { status: "accepted", inviteeUserId: currentUser?._id });
     }
+    return registrationId;
+  },
+});
+
+export const quickRegister = mutation({
+  args: {
+    tournamentId: v.id("tournaments"),
+    applicantName: v.optional(v.string()),
+    applicantEmail: v.optional(v.string()),
+    phoneNumber: v.optional(v.string()),
+    countryCode: v.optional(v.string()),
+    captainName: v.optional(v.string()),
+    roster: v.optional(v.array(v.object({
+      displayName: v.string(),
+      role: v.union(v.literal("captain"), v.literal("player"), v.literal("substitute"), v.literal("coach")),
+      countryCode: v.optional(v.string()),
+    }))),
+  },
+  returns: v.id("registrations"),
+  handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    const tournament = await ctx.db.get("tournaments", args.tournamentId);
+    if (!tournament || tournament.registrationEnabled === false || ["Draft", "Completed", "Cancelled"].includes(tournament.status)) {
+      throw new ConvexError("Registration is not available for this tournament.");
+    }
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
+
+    const applicantName = (args.applicantName || currentUser?.gamerTag || currentUser?.name || identity.name || "").trim();
+    const applicantEmail = (args.applicantEmail || currentUser?.email || identity.email || "").trim().toLowerCase();
+    const phoneNumber = (args.phoneNumber || currentUser?.phone || "").trim();
+    const countryCode = (args.countryCode || currentUser?.countryCode || "").trim().toUpperCase();
+
+    if (!applicantName) throw new ConvexError("Please set up your player name or gamer tag in your profile.");
+    if (!countryCode) throw new ConvexError("Please choose your country in your profile.");
+    if (!applicantEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(applicantEmail)) throw new ConvexError("A valid email address is required.");
+    if (phoneNumber.replace(/\D/g, "").length < 7) throw new ConvexError("A valid contact phone number is required in your profile.");
+
+    const selectedGame = tournament.gameId ?? "efootball";
+    if (tournament.maxSlots) {
+      const participants = await ctx.db.query("participants").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.tournamentId)).take(tournament.maxSlots);
+      if (participants.length >= tournament.maxSlots) throw new ConvexError("Registration is not available because this tournament is full.");
+    }
+
+    const priorRegistration = await ctx.db
+      .query("registrations")
+      .withIndex("by_ownerToken_and_tournamentId", (q) =>
+        q.eq("ownerToken", identity.tokenIdentifier).eq("tournamentId", args.tournamentId),
+      )
+      .first();
+    if (priorRegistration && priorRegistration.status !== "rejected") {
+      throw new ConvexError("You are already registered for this tournament.");
+    }
+
+    const rules = rulesFor(selectedGame);
+    let roster = args.roster ?? currentUser?.defaultRoster ?? [];
+    let captainName = args.captainName ?? currentUser?.captainName ?? (selectedGame === "valorant" ? applicantName : undefined);
+
+    if (selectedGame === "valorant") {
+      if (!roster.length) {
+        roster = [
+          { displayName: captainName || applicantName, role: "captain" },
+          { displayName: `${applicantName} Mate 2`, role: "player" },
+          { displayName: `${applicantName} Mate 3`, role: "player" },
+          { displayName: `${applicantName} Mate 4`, role: "player" },
+          { displayName: `${applicantName} Mate 5`, role: "player" },
+        ];
+      }
+      const starters = roster.filter((member) => member.role === "captain" || member.role === "player");
+      if (starters.length !== rules.teamSize) throw new ConvexError(`VALORANT registration requires exactly ${rules.teamSize} starting players.`);
+      if (!captainName) captainName = roster.find((m) => m.role === "captain")?.displayName || applicantName;
+    }
+
+    const registrationId = await ctx.db.insert("registrations", {
+      userId: currentUser?._id,
+      ownerToken: identity.tokenIdentifier,
+      tournamentId: args.tournamentId,
+      applicantName,
+      applicantEmail,
+      phoneNumber,
+      countryCode,
+      acceptedRules: true,
+      captainName,
+      gameId: selectedGame,
+      competitorKind: rules.competitorKind,
+      status: "approved",
+      createdAt: Date.now(),
+    });
+    for (const member of roster) await ctx.db.insert("registrationRoster", { registrationId, ...member });
+    const participantId = await insertCompetitor(ctx, {
+      userId: currentUser?._id,
+      tournamentId: args.tournamentId,
+      name: applicantName,
+      gameId: selectedGame,
+      countryCode,
+      captain: captainName,
+      roster,
+    });
+    await ctx.db.patch(registrationId, { participantId });
     return registrationId;
   },
 });

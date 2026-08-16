@@ -8,12 +8,17 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 
+import { ProfileOnboardingDialog } from "@/components/auth/profile-onboarding-dialog";
+
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 export function ConvexClientProvider({ children }: { children: ReactNode }) {
   return (
     <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-      <Authenticated><UserSync /></Authenticated>
+      <Authenticated>
+        <UserSync />
+        <ProfileOnboardingDialog />
+      </Authenticated>
       {children}
     </ConvexProviderWithClerk>
   );

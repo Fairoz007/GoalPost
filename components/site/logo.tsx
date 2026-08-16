@@ -9,7 +9,7 @@ export function Logo({
 }) {
   return (
     <span className={cn("flex items-center gap-2.5", className)}>
-      <span className="relative flex size-9 -skew-x-6 items-center justify-center overflow-hidden rounded-md bg-primary text-primary-foreground shadow-[0_0_20px_rgba(239,35,60,.22)]">
+      <span className="relative flex size-9 -skew-x-6 items-center justify-center overflow-hidden rounded-md bg-primary text-primary-foreground shadow-[0_0_20px_rgba(239,35,60,.35)]">
         <svg
           viewBox="0 0 32 32"
           fill="none"
@@ -27,10 +27,10 @@ export function Logo({
       {showText ? (
         <span className="leading-none">
           <span className="block font-display text-lg font-bold tracking-[.06em]">
-            D-ONE <span className="text-primary">ARENA</span>
+            POWERWEX <span className="text-primary">EG</span>
           </span>
-          <span className="mt-0.5 block text-[8px] font-semibold uppercase tracking-[.28em] text-muted-foreground">
-            by DoneStudio
+          <span className="mt-0.5 block text-[8px] font-semibold uppercase tracking-[.24em] text-muted-foreground">
+            Tournament Cloud
           </span>
         </span>
       ) : null}
