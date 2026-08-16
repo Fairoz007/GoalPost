@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Logo } from "./logo";
-
 export function SiteFooter() {
   return (
     <footer className="border-t border-border bg-[#090909]">
@@ -8,16 +7,8 @@ export function SiteFooter() {
         <div>
           <Logo />
           <p className="mt-4 max-w-sm text-sm leading-6 text-muted-foreground">
-            The competitive esports home for eFootball and VALORANT tournaments. Powered by{" "}
-            <a
-              href="https://arena.donestudio.in/"
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium text-foreground hover:text-primary transition-colors underline underline-offset-4"
-            >
-              D-ONE ARENA Tournament Cloud
-            </a>
-            .
+            The competitive home for players, teams, and tournament organizers.
+            Built by DoneStudio.
           </p>
         </div>
         <nav className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted-foreground">
@@ -28,16 +19,7 @@ export function SiteFooter() {
         </nav>
       </div>
       <div className="border-t border-border py-5 text-center text-xs text-muted-foreground">
-        © 2026 D-ONE ARENA by d-one studio ·{" "}
-        <a
-          href="https://arena.donestudio.in/"
-          target="_blank"
-          rel="noreferrer"
-          className="hover:text-primary transition-colors underline underline-offset-4"
-        >
-          Tournament Cloud
-        </a>
-        . All rights reserved.
+        © 2026 D-One Arena by DoneStudio. Play. Compete. Become Champion.
       </div>
     </footer>
   );

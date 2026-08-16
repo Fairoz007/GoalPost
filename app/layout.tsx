@@ -19,12 +19,12 @@ const oswald = Oswald({
 export const metadata: Metadata = {
   metadataBase: new URL("https://arena.donestudio.in"),
   title: {
-    default: "D-ONE ARENA — Play. Compete. Become Champion.",
-    template: "%s | D-ONE ARENA",
+    default: "D-One Arena — Play. Compete. Become Champion.",
+    template: "%s | D-One Arena",
   },
   description:
-    "D-ONE ARENA by d-one studio is a premium esports tournament platform for eFootball, VALORANT, and the games coming next.",
-  generator: "d-one studio",
+    "D-One Arena by DoneStudio is a premium esports tournament platform for eFootball, VALORANT, and the games coming next.",
+  generator: "DoneStudio",
   keywords: [
     "esports tournaments",
     "eFootball",
@@ -34,10 +34,10 @@ export const metadata: Metadata = {
     "rankings",
   ],
   openGraph: {
-    title: "D-ONE ARENA",
+    title: "D-One Arena",
     description: "Enter the arena. Play, compete, become champion.",
     url: "https://arena.donestudio.in",
-    siteName: "D-ONE ARENA",
+    siteName: "D-One Arena",
     type: "website",
   },
 };
