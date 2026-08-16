@@ -253,11 +253,11 @@ export function ManualFixtureDialog({
               participants={participants}
               player1={p1}
               player2={p2}
-              onAssignPlayer1={(p) => setPlayer1Id(p._id)}
-              onAssignPlayer2={(p) => setPlayer2Id(p._id)}
+              onAssignPlayer1={(p) => setPlayer1Id(p ? p._id : '')}
+              onAssignPlayer2={(p) => setPlayer2Id(p ? p._id : '')}
               onSelectPair={(first, second) => {
-                setPlayer1Id(first._id)
-                setPlayer2Id(second._id)
+                setPlayer1Id(first ? first._id : '')
+                setPlayer2Id(second ? second._id : '')
               }}
             />
           </div>

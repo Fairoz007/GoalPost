@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Cloud, Menu, Search, User, X } from "lucide-react";
+import { Menu, Search, User, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Logo } from "./logo";
@@ -60,11 +60,6 @@ export function SiteHeader() {
           </nav>
 
           <div className="ml-auto flex items-center gap-2 lg:ml-0">
-            {/* PowerWex Cloud Badge */}
-            <div className="hidden items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-400 xl:flex">
-              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              PowerWex Cloud
-            </div>
 
             <Link
               href="/tournaments"
