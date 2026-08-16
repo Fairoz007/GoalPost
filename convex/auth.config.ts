@@ -1,18 +1,14 @@
 import type { AuthConfig } from "convex/server";
 
-const configuredIssuer = process.env.CLERK_FRONTEND_API_URL || process.env.CLERK_JWT_ISSUER_DOMAIN;
-const defaultIssuers = [
-  "https://rich-elephant-82.clerk.accounts.dev",
-  "https://clerk.donestudio.in",
-];
+const clerkIssuer = process.env.CLERK_FRONTEND_API_URL;
+const productionClerkIssuer = "https://clerk.donestudio.in";
 
-const allDomains = [
-  configuredIssuer,
-  ...defaultIssuers,
-].filter((domain): domain is string => Boolean(domain && domain.trim()));
+if (!clerkIssuer) {
+  throw new Error("CLERK_FRONTEND_API_URL is required for Clerk authentication.");
+}
 
 export default {
-  providers: [...new Set(allDomains)].map((domain) => ({
+  providers: [...new Set([clerkIssuer, productionClerkIssuer])].map((domain) => ({
     domain,
     applicationID: "convex",
   })),
