@@ -385,19 +385,23 @@ describe("game-aware tournament engine", () => {
     const initialProfile = await player.query(api.users.getProfile, {});
     expect(initialProfile?.profileCompleted).toBe(false);
 
-    // 2. Player completes profile onboarding
+    // 2. Player completes profile onboarding including optional game IDs
     await player.mutation(api.users.updateProfile, {
       name: "Striker Ace",
       gamerTag: "Striker#99",
       phone: "+971501234567",
       countryCode: "AE",
       discordTag: "striker#0001",
+      efootballId: "EF-998877",
+      valorantId: "Striker#VAL",
     });
 
     const updatedProfile = await player.query(api.users.getProfile, {});
     expect(updatedProfile?.profileCompleted).toBe(true);
     expect(updatedProfile?.gamerTag).toBe("Striker#99");
     expect(updatedProfile?.phone).toBe("+971501234567");
+    expect(updatedProfile?.efootballId).toBe("EF-998877");
+    expect(updatedProfile?.valorantId).toBe("Striker#VAL");
 
     // 3. Instant 1-click registration without entering extra details
     const registrationId = await player.mutation(api.arena.quickRegister, { tournamentId });
@@ -407,6 +411,7 @@ describe("game-aware tournament engine", () => {
     expect(participants).toHaveLength(1);
     expect(participants[0].name).toBe("Striker#99");
     expect(participants[0].countryCode).toBe("AE");
+    expect(participants[0].efootballId).toBe("EF-998877");
 
     // Duplicate registration is rejected
     await expect(player.mutation(api.arena.quickRegister, { tournamentId })).rejects.toThrow("already registered");

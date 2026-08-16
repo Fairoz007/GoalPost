@@ -190,6 +190,8 @@ export default defineSchema({
     assists: v.optional(v.number()),
     shots: v.optional(v.number()),
     shotsOnTarget: v.optional(v.number()),
+    cards: v.optional(v.number()),
+    possession: v.optional(v.number()),
     possessionPercentage: v.optional(v.number()),
     passAccuracyPercentage: v.optional(v.number()),
     fouls: v.optional(v.number()),

@@ -112,6 +112,8 @@ export function TournamentDetail({
   const [showFullForm, setShowFullForm] = useState(false);
   const [error, setError] = useState("");
   const [registerCountry, setRegisterCountry] = useState("");
+  const [gameIdInput, setGameIdInput] = useState("");
+
   const byParticipant = useMemo(
     () => new Map((participants ?? []).map((p) => [p._id, p])),
     [participants],
@@ -126,7 +128,12 @@ export function TournamentDetail({
     setError("");
     setQuickRegistering(true);
     try {
-      await quickRegister({ tournamentId });
+      const selectedGameId = tournament?.gameId ?? "efootball";
+      await quickRegister({
+        tournamentId,
+        efootballId: selectedGameId === "efootball" ? gameIdInput.trim() || undefined : undefined,
+        valorantId: selectedGameId === "valorant" ? gameIdInput.trim() || undefined : undefined,
+      });
       setSubmitted(true);
       setRegistering(true);
     } catch (cause) {
@@ -173,6 +180,17 @@ export function TournamentDetail({
       </div>
     );
   const game = getGameModule(tournament.gameId);
+
+  useEffect(() => {
+    if (profile) {
+      if (game.id === "efootball" && profile.efootballId) {
+        setGameIdInput(profile.efootballId);
+      } else if (game.id === "valorant" && profile.valorantId) {
+        setGameIdInput(profile.valorantId);
+      }
+    }
+  }, [profile, game.id]);
+
   const completed = (matches ?? []).filter(
     (match) => match.status === "Completed",
   );
@@ -198,12 +216,15 @@ export function TournamentDetail({
               })),
             ]
           : undefined;
+      const rawGameId = String(form.get("gameIdInput") || "").trim();
       await register({
         tournamentId,
         applicantName: String(form.get("name")),
         applicantEmail: String(form.get("email")),
         phoneNumber: String(form.get("phone")),
         countryCode: String(form.get("country") || "") || undefined,
+        efootballId: game.id === "efootball" ? rawGameId || undefined : undefined,
+        valorantId: game.id === "valorant" ? rawGameId || undefined : undefined,
         acceptedRules: true,
         captainName,
         roster,
@@ -595,21 +616,40 @@ export function TournamentDetail({
                   Your player profile is verified. Click below to register instantly without re-typing your details.
                 </p>
 
-                <div className="rounded-2xl border border-primary/40 bg-primary/10 p-5 text-left">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
-                    <Zap className="size-4" /> Verified Player Entry
-                  </div>
-                  <h3 className="mt-2 font-display text-2xl font-bold uppercase text-foreground">
-                    {profile.gamerTag || profile.name}
-                  </h3>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {countryName(profile.countryCode || "")} · {profile.phone} · {profile.email}
-                  </p>
-                  {game.id === "valorant" && (
-                    <p className="mt-2 text-xs font-medium text-primary">
-                      Captain: {profile.captainName || profile.gamerTag || profile.name}
+                <div className="rounded-2xl border border-primary/40 bg-primary/10 p-5 text-left space-y-3">
+                  <div>
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
+                      <Zap className="size-4" /> Verified Player Entry
+                    </div>
+                    <h3 className="mt-1 font-display text-2xl font-bold uppercase text-foreground">
+                      {profile.gamerTag || profile.name}
+                    </h3>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {countryName(profile.countryCode || "")} · {profile.phone} · {profile.email}
                     </p>
-                  )}
+                    {game.id === "valorant" && (
+                      <p className="mt-1 text-xs font-medium text-primary">
+                        Captain: {profile.captainName || profile.gamerTag || profile.name}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Optional Game ID configuration */}
+                  <div className="rounded-xl border border-primary/20 bg-background/80 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-semibold text-foreground">
+                      <span className="flex items-center gap-1.5 text-primary">
+                        {game.id === "efootball" ? "⚽ eFootball User ID / Konami ID" : "🎯 VALORANT Riot ID & Tag"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">Optional</span>
+                    </div>
+                    <Input
+                      value={gameIdInput}
+                      onChange={(e) => setGameIdInput(e.target.value)}
+                      placeholder={game.id === "efootball" ? "e.g. 123-456-789 or Konami Name" : "e.g. Player#EUW"}
+                      className="h-9 text-xs bg-card"
+                    />
+                    <p className="text-[10px] text-muted-foreground">Saves automatically to your profile for this and future events.</p>
+                  </div>
                 </div>
 
                 {error && <p className="text-sm text-red-400">{error}</p>}
@@ -630,7 +670,7 @@ export function TournamentDetail({
                     onClick={() => setShowFullForm(true)}
                     className="text-xs text-muted-foreground underline hover:text-foreground"
                   >
-                    Need custom details for this tournament? Edit details
+                    Need custom roster or details for this event? Edit details
                   </button>
                 </div>
               </div>
@@ -702,6 +742,16 @@ export function TournamentDetail({
                     </SelectTrigger>
                     <SelectContent>{COUNTRY_OPTIONS.map((country) => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}</SelectContent>
                   </Select>
+
+                  {/* Optional Game ID field */}
+                  <div>
+                    <Input
+                      name="gameIdInput"
+                      defaultValue={game.id === "efootball" ? profile?.efootballId || "" : profile?.valorantId || ""}
+                      placeholder={game.id === "efootball" ? "eFootball ID / Konami Name (Optional)" : "VALORANT Riot ID & Tag (Optional)"}
+                    />
+                  </div>
+
                   {game.id === "valorant" && (
                     <div className="space-y-3 rounded-xl border border-border bg-background p-4">
                       <p className="text-xs font-bold uppercase tracking-wider text-primary">
