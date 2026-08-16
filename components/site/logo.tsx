@@ -29,8 +29,8 @@ export function Logo({
           <span className="block font-display text-lg font-bold tracking-[.06em]">
             D-ONE <span className="text-primary">ARENA</span>
           </span>
-          <span className="mt-0.5 block text-[8px] font-semibold uppercase tracking-[.28em] text-muted-foreground">
-            by DoneStudio
+          <span className="mt-0.5 block text-[8px] font-semibold uppercase tracking-[.22em] text-muted-foreground">
+            by d-one studio · Tournament Cloud
           </span>
         </span>
       ) : null}
