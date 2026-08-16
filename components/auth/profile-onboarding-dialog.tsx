@@ -131,7 +131,7 @@ export function ProfileOnboardingDialog({ forceOpen, onClose }: ProfileOnboardin
           <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground">
             {profile?.profileCompleted
               ? 'Manage your contact details and optional eFootball & VALORANT IDs.'
-              : 'Fill in your details once to unlock instant 1-Click Registration across all EG Tournaments!'}
+              : 'Fill in your details once to unlock instant 1-Click Registration across all D-One Arena tournaments!'}
           </p>
         </div>
 

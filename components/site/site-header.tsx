@@ -37,7 +37,7 @@ export function SiteHeader() {
     <>
       <header className="sticky top-0 z-50 border-b border-white/8 bg-background/90 backdrop-blur-xl">
         <div className="mx-auto flex h-[72px] max-w-7xl items-center gap-5 px-4 sm:px-6">
-          <Link href="/" aria-label="PowerWex EG Tournament home">
+          <Link href="/" aria-label="D-One Arena home">
             <Logo />
           </Link>
 

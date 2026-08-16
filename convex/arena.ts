@@ -236,7 +236,7 @@ export const quickRegister = mutation({
       .unique();
 
     const applicantName = (args.applicantName || currentUser?.gamerTag || currentUser?.name || identity.name || "").trim();
-    const rawEmail = args.applicantEmail || currentUser?.email || identity.email || (identity.subject ? `${identity.subject.replace(/[^a-zA-Z0-9._-]/g, '')}@player.powerwex.com` : "");
+    const rawEmail = args.applicantEmail || currentUser?.email || identity.email || (identity.subject ? `${identity.subject.replace(/[^a-zA-Z0-9._-]/g, '')}@player.donestudio.in` : "");
     const applicantEmail = rawEmail.trim().toLowerCase();
     const phoneNumber = (args.phoneNumber || currentUser?.phone || "").trim();
     const countryCode = (args.countryCode || currentUser?.countryCode || "").trim().toUpperCase();

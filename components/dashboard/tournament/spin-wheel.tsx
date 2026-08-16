@@ -223,7 +223,7 @@ export function SpinWheel({
       ctx.fillText(currentStep === 'p1' ? 'P1' : currentStep === 'p2' ? 'P2' : 'READY', center, center - 4)
       ctx.fillStyle = '#FFFFFF'
       ctx.font = 'bold 9px sans-serif'
-      ctx.fillText('POWERWEX', center, center + 9)
+      ctx.fillText('D-ONE', center, center + 9)
       ctx.restore()
 
       // Realistic Pointer at Top with Physical Deflection (flapperDeg)

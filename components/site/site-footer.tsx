@@ -19,7 +19,7 @@ export function SiteFooter() {
         </nav>
       </div>
       <div className="border-t border-border py-5 text-center text-xs text-muted-foreground">
-        © 2026 PowerWex EG Tournament. All rights reserved.
+        © 2026 D-One Arena by DoneStudio. All rights reserved.
       </div>
     </footer>
   );
