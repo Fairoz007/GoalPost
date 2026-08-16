@@ -23,6 +23,8 @@ const userProfileValidator = v.object({
   phone: v.optional(v.string()),
   countryCode: v.optional(v.string()),
   discordTag: v.optional(v.string()),
+  efootballId: v.optional(v.string()),
+  valorantId: v.optional(v.string()),
   captainName: v.optional(v.string()),
   defaultRoster: v.optional(v.array(rosterMemberValidator)),
   profileCompleted: v.optional(v.boolean()),
@@ -97,6 +99,8 @@ export const getProfile = query({
       phone: user.phone,
       countryCode: user.countryCode,
       discordTag: user.discordTag,
+      efootballId: user.efootballId,
+      valorantId: user.valorantId,
       captainName: user.captainName,
       defaultRoster: user.defaultRoster,
       profileCompleted: Boolean(user.profileCompleted),
@@ -111,6 +115,8 @@ export const updateProfile = mutation({
     phone: v.string(),
     countryCode: v.string(),
     discordTag: v.optional(v.string()),
+    efootballId: v.optional(v.string()),
+    valorantId: v.optional(v.string()),
     captainName: v.optional(v.string()),
     defaultRoster: v.optional(v.array(rosterMemberValidator)),
   },
@@ -126,6 +132,8 @@ export const updateProfile = mutation({
     const cleanPhone = args.phone.trim();
     const cleanCountry = args.countryCode.trim().toUpperCase();
     const cleanDiscord = args.discordTag?.trim();
+    const cleanEfootballId = args.efootballId?.trim();
+    const cleanValorantId = args.valorantId?.trim();
     const cleanCaptain = args.captainName?.trim() || cleanName;
 
     if (!cleanName) throw new Error("Full name is required.");
@@ -138,6 +146,8 @@ export const updateProfile = mutation({
       phone: cleanPhone,
       countryCode: cleanCountry,
       discordTag: cleanDiscord,
+      efootballId: cleanEfootballId,
+      valorantId: cleanValorantId,
       captainName: cleanCaptain,
       defaultRoster: args.defaultRoster,
       profileCompleted: true,

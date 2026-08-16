@@ -98,6 +98,8 @@ export const register = mutation({
     phoneNumber: v.string(),
     teamId: v.optional(v.id("teams")),
     countryCode: v.optional(v.string()),
+    efootballId: v.optional(v.string()),
+    valorantId: v.optional(v.string()),
     acceptedRules: v.boolean(),
     captainName: v.optional(v.string()),
     roster: v.optional(v.array(v.object({
@@ -122,6 +124,17 @@ export const register = mutation({
     const applicantEmail = (args.applicantEmail || currentUser?.email || identity.email || "").trim().toLowerCase();
     const phoneNumber = (args.phoneNumber || currentUser?.phone || "").trim();
     const countryCode = (args.countryCode || currentUser?.countryCode || "").trim().toUpperCase();
+    const efootballId = (args.efootballId || currentUser?.efootballId || "").trim();
+    const valorantId = (args.valorantId || currentUser?.valorantId || "").trim();
+
+    if (currentUser) {
+      const profilePatch: Record<string, any> = {};
+      if (efootballId && !currentUser.efootballId) profilePatch.efootballId = efootballId;
+      if (valorantId && !currentUser.valorantId) profilePatch.valorantId = valorantId;
+      if (Object.keys(profilePatch).length > 0) {
+        await ctx.db.patch(currentUser._id, profilePatch);
+      }
+    }
 
     if (!applicantName) throw new ConvexError("Your name is required.");
     if (!countryCode) throw new ConvexError("Choose your country.");
@@ -158,6 +171,8 @@ export const register = mutation({
       phoneNumber,
       teamId: args.teamId,
       countryCode,
+      efootballId: efootballId || undefined,
+      valorantId: valorantId || undefined,
       acceptedRules: args.acceptedRules,
       captainName: args.captainName,
       gameId: selectedGame,
@@ -172,6 +187,8 @@ export const register = mutation({
       name: applicantName,
       gameId: selectedGame,
       countryCode,
+      efootballId: efootballId || undefined,
+      valorantId: valorantId || undefined,
       captain: args.captainName,
       teamId: args.teamId,
       roster,
@@ -197,6 +214,8 @@ export const quickRegister = mutation({
     applicantEmail: v.optional(v.string()),
     phoneNumber: v.optional(v.string()),
     countryCode: v.optional(v.string()),
+    efootballId: v.optional(v.string()),
+    valorantId: v.optional(v.string()),
     captainName: v.optional(v.string()),
     roster: v.optional(v.array(v.object({
       displayName: v.string(),
@@ -221,6 +240,17 @@ export const quickRegister = mutation({
     const applicantEmail = rawEmail.trim().toLowerCase();
     const phoneNumber = (args.phoneNumber || currentUser?.phone || "").trim();
     const countryCode = (args.countryCode || currentUser?.countryCode || "").trim().toUpperCase();
+    const efootballId = (args.efootballId || currentUser?.efootballId || "").trim();
+    const valorantId = (args.valorantId || currentUser?.valorantId || "").trim();
+
+    if (currentUser) {
+      const profilePatch: Record<string, any> = {};
+      if (efootballId && !currentUser.efootballId) profilePatch.efootballId = efootballId;
+      if (valorantId && !currentUser.valorantId) profilePatch.valorantId = valorantId;
+      if (Object.keys(profilePatch).length > 0) {
+        await ctx.db.patch(currentUser._id, profilePatch);
+      }
+    }
 
     if (!applicantName) throw new ConvexError("Please set up your player name or gamer tag in your profile.");
     if (!countryCode) throw new ConvexError("Please choose your country in your profile.");
@@ -270,6 +300,8 @@ export const quickRegister = mutation({
       applicantEmail,
       phoneNumber,
       countryCode,
+      efootballId: efootballId || undefined,
+      valorantId: valorantId || undefined,
       acceptedRules: true,
       captainName,
       gameId: selectedGame,
@@ -284,6 +316,8 @@ export const quickRegister = mutation({
       name: applicantName,
       gameId: selectedGame,
       countryCode,
+      efootballId: efootballId || undefined,
+      valorantId: valorantId || undefined,
       captain: captainName,
       roster,
     });

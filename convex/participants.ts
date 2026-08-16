@@ -25,6 +25,8 @@ type CompetitorInput = {
   avatarUrl?: string;
   countryCode?: string;
   flag?: string;
+  efootballId?: string;
+  valorantId?: string;
   captain?: string;
   seed?: number;
   roster?: Array<{ displayName: string; role: "captain" | "player" | "coach" | "substitute"; countryCode?: string }>;
@@ -129,6 +131,8 @@ export async function insertCompetitor(ctx: MutationCtx, args: CompetitorInput) 
     avatarUrl: args.avatarUrl,
     countryCode: args.countryCode,
     flag: args.flag,
+    efootballId: args.efootballId,
+    valorantId: args.valorantId,
     captain: args.captain,
     seed: args.seed,
     registrationStatus: "approved",
