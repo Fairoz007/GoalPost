@@ -270,7 +270,7 @@ export function ManualFixtureDialog({
             <div className="rounded-2xl border border-border bg-background p-5">
               <Label className="text-xs font-bold uppercase tracking-wider text-primary">Participant 1 (Home)</Label>
               <div className="mt-3">
-                <Select value={player1Id} onValueChange={setPlayer1Id}>
+                <Select value={player1Id} onValueChange={(val) => setPlayer1Id(val || '')}>
                   <SelectTrigger className="h-12 w-full text-base">
                     <SelectValue placeholder="Select Participant 1..." />
                   </SelectTrigger>
@@ -296,7 +296,7 @@ export function ManualFixtureDialog({
             <div className="rounded-2xl border border-border bg-background p-5">
               <Label className="text-xs font-bold uppercase tracking-wider text-primary">Participant 2 (Away)</Label>
               <div className="mt-3">
-                <Select value={player2Id} onValueChange={setPlayer2Id}>
+                <Select value={player2Id} onValueChange={(val) => setPlayer2Id(val || '')}>
                   <SelectTrigger className="h-12 w-full text-base">
                     <SelectValue placeholder="Select Participant 2..." />
                   </SelectTrigger>
@@ -350,7 +350,7 @@ export function ManualFixtureDialog({
             {/* Round Preset */}
             <div>
               <Label className="text-xs">Stage / Round</Label>
-              <Select value={roundName} onValueChange={(val) => { setRoundName(val); setCustomRound(''); }}>
+              <Select value={roundName} onValueChange={(val) => { setRoundName(val || 'Fixture'); setCustomRound(''); }}>
                 <SelectTrigger className="mt-1.5 h-10">
                   <SelectValue />
                 </SelectTrigger>
@@ -390,7 +390,7 @@ export function ManualFixtureDialog({
             {/* Best Of */}
             <div>
               <Label className="text-xs">Match Format</Label>
-              <Select value={String(bestOf)} onValueChange={(v) => setBestOf(Number(v))}>
+              <Select value={String(bestOf)} onValueChange={(v) => setBestOf(Number(v || '1'))}>
                 <SelectTrigger className="mt-1.5 h-10">
                   <SelectValue />
                 </SelectTrigger>
@@ -406,7 +406,7 @@ export function ManualFixtureDialog({
             {groups && groups.length > 0 && (
               <div>
                 <Label className="text-xs">Assign to Group (Optional)</Label>
-                <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
+                <Select value={selectedGroupId} onValueChange={(val) => setSelectedGroupId(val || 'none')}>
                   <SelectTrigger className="mt-1.5 h-10">
                     <SelectValue />
                   </SelectTrigger>

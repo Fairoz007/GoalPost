@@ -188,7 +188,7 @@ export function ProfileOnboardingDialog({ forceOpen, onClose }: ProfileOnboardin
             <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
               Country <span className="text-primary">*</span>
             </Label>
-            <Select value={countryCode} onValueChange={setCountryCode}>
+            <Select value={countryCode} onValueChange={(val) => setCountryCode(val || '')}>
               <SelectTrigger className="mt-1.5 h-11">
                 <SelectValue placeholder="Choose your country..." />
               </SelectTrigger>

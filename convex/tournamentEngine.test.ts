@@ -367,6 +367,8 @@ describe("game-aware tournament engine", () => {
     }
     const champions = await t.query(api.arena.listChampions, { gameId: "valorant" });
     expect(champions).toHaveLength(1);
+  });
+
   test("user profile onboarding and instant 1-click tournament registration work seamlessly", async () => {
     const base = convexTest(schema, modules);
     const organizer = base.withIdentity(organizerIdentity);

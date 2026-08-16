@@ -217,7 +217,8 @@ export const quickRegister = mutation({
       .unique();
 
     const applicantName = (args.applicantName || currentUser?.gamerTag || currentUser?.name || identity.name || "").trim();
-    const applicantEmail = (args.applicantEmail || currentUser?.email || identity.email || "").trim().toLowerCase();
+    const rawEmail = args.applicantEmail || currentUser?.email || identity.email || (identity.subject ? `${identity.subject.replace(/[^a-zA-Z0-9._-]/g, '')}@player.powerwex.com` : "");
+    const applicantEmail = rawEmail.trim().toLowerCase();
     const phoneNumber = (args.phoneNumber || currentUser?.phone || "").trim();
     const countryCode = (args.countryCode || currentUser?.countryCode || "").trim().toUpperCase();
 
