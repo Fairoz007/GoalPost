@@ -416,3 +416,82 @@ export const listMyRegistrations = query({
     })));
   },
 });
+
+export const getRegistrationStatus = query({
+  args: { tournamentId: v.id("tournaments") },
+  returns: v.union(
+    v.object({
+      registered: v.boolean(),
+      participantId: v.optional(v.id("participants")),
+      name: v.optional(v.string()),
+      gamerTag: v.optional(v.string()),
+      checkedIn: v.optional(v.boolean()),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const registration = await ctx.db
+      .query("registrations")
+      .withIndex("by_ownerToken_and_tournamentId", (q) =>
+        q.eq("ownerToken", identity.tokenIdentifier).eq("tournamentId", args.tournamentId),
+      )
+      .first();
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
+
+    let participant = null;
+    if (currentUser) {
+      participant = await ctx.db
+        .query("participants")
+        .withIndex("by_tournamentId_and_userId", (q) =>
+          q.eq("tournamentId", args.tournamentId).eq("userId", currentUser._id),
+        )
+        .first();
+    }
+
+    if (!participant && registration?.participantId) {
+      participant = await ctx.db.get("participants", registration.participantId);
+    }
+
+    if (!participant && registration?.applicantName) {
+      participant = await ctx.db
+        .query("participants")
+        .withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.tournamentId))
+        .filter((q) => q.eq(q.field("name"), registration.applicantName))
+        .first();
+    }
+
+    if (!participant && currentUser) {
+      const allParticipants = await ctx.db
+        .query("participants")
+        .withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.tournamentId))
+        .take(128);
+      participant =
+        allParticipants.find(
+          (p) =>
+            (currentUser.name && p.name.toLowerCase() === currentUser.name.toLowerCase()) ||
+            (currentUser.gamerTag && p.name.toLowerCase() === currentUser.gamerTag.toLowerCase()) ||
+            (currentUser.efootballId && p.efootballId && p.efootballId === currentUser.efootballId) ||
+            (currentUser.valorantId && p.valorantId && p.valorantId === currentUser.valorantId),
+        ) ?? null;
+    }
+
+    const isRegistered = Boolean((registration && registration.status !== "rejected") || participant);
+    if (!isRegistered) {
+      return { registered: false };
+    }
+
+    return {
+      registered: true,
+      participantId: participant?._id,
+      name: participant?.name || registration?.applicantName || currentUser?.name,
+      gamerTag: currentUser?.gamerTag || participant?.name,
+      checkedIn: participant?.checkedIn ?? false,
+    };
+  },
+});

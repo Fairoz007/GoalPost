@@ -103,6 +103,11 @@ export function TournamentDetail({
   const register = useMutation(api.arena.register);
   const quickRegister = useMutation(api.arena.quickRegister);
   const { isAuthenticated } = useConvexAuth();
+  const userRegistration = useQuery(
+    api.arena.getRegistrationStatus,
+    tournamentId && isAuthenticated ? { tournamentId } : "skip",
+  );
+  const isUserRegistered = Boolean(userRegistration?.registered);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const tabParam = searchParams?.get("tab");
@@ -168,10 +173,10 @@ export function TournamentDetail({
   }, [tabParam]);
 
   useEffect(() => {
-    if (registerParam && isAuthenticated && registrationAvailable) {
+    if (registerParam && isAuthenticated && registrationAvailable && !isUserRegistered) {
       setRegistering(true);
     }
-  }, [registerParam, isAuthenticated, registrationAvailable]);
+  }, [registerParam, isAuthenticated, registrationAvailable, isUserRegistered]);
 
   useEffect(() => {
     if (profile && tournament) {
@@ -304,10 +309,37 @@ export function TournamentDetail({
               </span>
             )}
           </div>
-          {registrationAvailable && (
-            isAuthenticated ? <Button onClick={() => setRegistering(true)} size="lg" className="mt-8">Register free <ArrowRight className="size-4" /></Button>
-              : <Link href={signInUrlHero} className={cn(buttonVariants({ size: "lg" }), "mt-8")}>Sign in to register <ArrowRight className="size-4" /></Link>
-          )}
+          {isUserRegistered ? (
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-400 shadow-lg shadow-emerald-500/10">
+                <Check className="size-4 text-emerald-400" />
+                Already Registered ({userRegistration?.gamerTag || userRegistration?.name || "Confirmed"})
+              </div>
+              <a
+                href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(
+                  buttonVariants({ size: "lg" }),
+                  "gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold border-none shadow-md shadow-[#25D366]/20",
+                )}
+              >
+                <WhatsAppIcon className="size-4" />
+                Open WhatsApp Group
+                <ArrowRight className="size-4" />
+              </a>
+            </div>
+          ) : registrationAvailable ? (
+            isAuthenticated ? (
+              <Button onClick={() => setRegistering(true)} size="lg" className="mt-8">
+                Register free <ArrowRight className="size-4" />
+              </Button>
+            ) : (
+              <Link href={signInUrlHero} className={cn(buttonVariants({ size: "lg" }), "mt-8")}>
+                Sign in to register <ArrowRight className="size-4" />
+              </Link>
+            )
+          ) : null}
         </div>
       </section>
       <div className="sticky top-[72px] z-30 border-b border-border bg-background/95 backdrop-blur">
@@ -317,13 +349,18 @@ export function TournamentDetail({
               key={item}
               onClick={() => setTab(item)}
               className={cn(
-                "shrink-0 border-b-2 px-4 py-4 text-sm font-semibold transition",
+                "inline-flex items-center gap-1.5 shrink-0 border-b-2 px-4 py-4 text-sm font-semibold transition",
                 tab === item
                   ? "border-primary text-white"
                   : "border-transparent text-muted-foreground hover:text-white",
               )}
             >
               {item}
+              {item === "Registration" && isUserRegistered && (
+                <span className="flex items-center gap-1 rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                  <Check className="size-2.5" /> Registered
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -332,6 +369,36 @@ export function TournamentDetail({
         {tab === "Overview" && (
           <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
             <div>
+              {isUserRegistered && (
+                <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 sm:p-5">
+                  <div className="flex items-center gap-3.5">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+                      <Check className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                        Player Entry Confirmed
+                      </p>
+                      <p className="font-semibold text-white">
+                        You are registered for this tournament. No further registration is required.
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={cn(
+                      buttonVariants({ size: "sm" }),
+                      "shrink-0 gap-2 font-bold bg-[#25D366] hover:bg-[#20bd5a] text-black border-none shadow-sm",
+                    )}
+                  >
+                    <WhatsAppIcon className="size-4" />
+                    WhatsApp Group
+                    <ArrowRight className="size-3.5" />
+                  </a>
+                </div>
+              )}
               <SectionTitle
                 eyebrow="Tournament progress"
                 title={
@@ -457,6 +524,8 @@ export function TournamentDetail({
             game={game}
             available={registrationAvailable}
             isAuthenticated={isAuthenticated}
+            isRegistered={isUserRegistered}
+            userRegistration={userRegistration}
             signInUrl={signInUrlRegistration}
             profile={profile}
             onRegister={() => setRegistering(true)}
@@ -588,16 +657,18 @@ export function TournamentDetail({
             >
               <X className="size-5" />
             </button>
-            {submitted ? (
+            {submitted || isUserRegistered ? (
               <div className="py-4 sm:py-6 text-center">
                 <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-[#25D366]/15 border border-[#25D366]/30 text-[#25D366]">
                   <Check className="size-7 text-[#25D366]" />
                 </div>
                 <h2 className="mt-4 font-display text-2xl font-bold uppercase sm:text-3xl">
-                  You&apos;re registered!
+                  {submitted ? "You're registered!" : "You are already registered"}
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Your place was confirmed automatically and added to the participant list.
+                  {submitted
+                    ? "Your place was confirmed automatically and added to the participant list."
+                    : "Your player entry is already confirmed on the participant list."}
                 </p>
                 <div className="mt-5 rounded-2xl border border-border bg-background/90 p-4 text-left text-sm text-muted-foreground">
                   <p className="font-semibold text-white flex items-center gap-2 text-sm sm:text-base">
@@ -869,6 +940,8 @@ function RegistrationSection({
   game,
   available,
   isAuthenticated,
+  isRegistered,
+  userRegistration,
   signInUrl,
   profile,
   onRegister,
@@ -879,6 +952,8 @@ function RegistrationSection({
   game: ReturnType<typeof getGameModule>;
   available: boolean;
   isAuthenticated: boolean;
+  isRegistered?: boolean;
+  userRegistration?: any;
   signInUrl: string;
   profile?: any;
   onRegister: () => void;
@@ -889,47 +964,99 @@ function RegistrationSection({
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <div>
         <SectionTitle
-          eyebrow="Public registration"
+          eyebrow={isRegistered ? "Entry status" : "Public registration"}
           title={
-            available
-              ? "Sign in and join securely"
-              : "Registration is closed"
+            isRegistered
+              ? "You are registered"
+              : available
+                ? "Sign in and join securely"
+                : "Registration is closed"
           }
         />
         <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground">
-          Registration is free and automatic. Clerk links the entry to your account, while contact details remain visible only to you and the tournament organizer.
+          {isRegistered
+            ? `Your player entry has been approved and confirmed for ${tournament.name}. You are active on the competitor list.`
+            : "Registration is free and automatic. Clerk links the entry to your account, while contact details remain visible only to you and the tournament organizer."}
         </p>
-        {!available && <p className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-200">This tournament is not accepting registrations right now. You can still review fixtures, standings, and rules.</p>}
-        {available && (isAuthenticated
-          ? profile?.profileCompleted && onQuickRegister
-            ? (
-              <div className="mt-6 space-y-3">
-                <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4 max-w-md">
-                  <p className="text-xs font-bold uppercase text-primary flex items-center gap-1.5">
-                    <Zap className="size-3.5" /> 1-Click Fast Registration Active
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-foreground">
-                    Player: {profile.gamerTag || profile.name} ({countryName(profile.countryCode)})
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button
-                    onClick={onQuickRegister}
-                    size="lg"
-                    disabled={quickRegistering}
-                    className="gap-2 bg-gradient-to-r from-red-600 to-rose-600 font-bold shadow-lg shadow-red-500/20"
-                  >
-                    <Zap className="size-4" />
-                    {quickRegistering ? "Registering..." : `⚡ 1-Click Register for ${game.name}`}
-                  </Button>
-                  <Button onClick={onRegister} variant="outline" size="lg">
-                    Customize Details
-                  </Button>
-                </div>
+        {isRegistered ? (
+          <div className="mt-7 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 sm:p-7">
+            <div className="flex items-center gap-3">
+              <div className="flex size-11 items-center justify-center rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                <Check className="size-6 text-emerald-400" />
               </div>
-            )
-            : <Button onClick={onRegister} size="lg" className="mt-7">Register for {game.name}<ArrowRight className="size-4" /></Button>
-          : <Link href={signInUrl} className={cn(buttonVariants({ size: "lg" }), "mt-7")}>Sign in to register<ArrowRight className="size-4" /></Link>)}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                  Player Entry Confirmed
+                </p>
+                <h3 className="text-xl font-bold uppercase font-display text-white">
+                  {userRegistration?.gamerTag || userRegistration?.name || "Player Verified"}
+                </h3>
+              </div>
+            </div>
+            <div className="mt-5 rounded-xl border border-border bg-background/90 p-4 text-sm text-muted-foreground space-y-2">
+              <p className="font-semibold text-white">Next Steps for Match Day:</p>
+              <ol className="space-y-2 text-xs sm:text-sm">
+                <li>1. Join the tournament WhatsApp group for live scheduling, fixtures, and announcements.</li>
+                <li>2. Check in at least 15 minutes before your scheduled fixture.</li>
+                <li>3. Play your match and submit screenshot evidence.</li>
+              </ol>
+            </div>
+            <a
+              href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
+              target="_blank"
+              rel="noreferrer"
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                "mt-6 w-full sm:w-auto gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold border-none shadow-md shadow-[#25D366]/20",
+              )}
+            >
+              <WhatsAppIcon className="size-5 shrink-0" />
+              Open WhatsApp Group
+              <ArrowRight className="size-4 shrink-0" />
+            </a>
+          </div>
+        ) : !available ? (
+          <p className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-200">
+            This tournament is not accepting registrations right now. You can still review fixtures, standings, and rules.
+          </p>
+        ) : isAuthenticated ? (
+          profile?.profileCompleted && onQuickRegister ? (
+            <div className="mt-6 space-y-3">
+              <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4 max-w-md">
+                <p className="text-xs font-bold uppercase text-primary flex items-center gap-1.5">
+                  <Zap className="size-3.5" /> 1-Click Fast Registration Active
+                </p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  Player: {profile.gamerTag || profile.name} ({countryName(profile.countryCode)})
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  onClick={onQuickRegister}
+                  size="lg"
+                  disabled={quickRegistering}
+                  className="gap-2 bg-gradient-to-r from-red-600 to-rose-600 font-bold shadow-lg shadow-red-500/20"
+                >
+                  <Zap className="size-4" />
+                  {quickRegistering ? "Registering..." : `⚡ 1-Click Register for ${game.name}`}
+                </Button>
+                <Button onClick={onRegister} variant="outline" size="lg">
+                  Customize Details
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button onClick={onRegister} size="lg" className="mt-7">
+              Register for {game.name}
+              <ArrowRight className="size-4" />
+            </Button>
+          )
+        ) : (
+          <Link href={signInUrl} className={cn(buttonVariants({ size: "lg" }), "mt-7")}>
+            Sign in to register
+            <ArrowRight className="size-4" />
+          </Link>
+        )}
       </div>
       <aside className="rounded-xl border border-border bg-card p-6">
         <p className="text-xs font-bold uppercase tracking-wider text-primary">
