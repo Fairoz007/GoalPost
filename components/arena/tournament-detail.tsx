@@ -566,51 +566,84 @@ export function TournamentDetail({
         )}
       </main>
       {registering && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-3 sm:p-4 backdrop-blur-md">
-          <div className="relative my-auto max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-2xl sm:rounded-3xl border border-border bg-card p-5 sm:p-7 shadow-2xl">
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/85 p-0 sm:p-4 backdrop-blur-md">
+          <div className="relative my-auto max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-border/80 bg-card p-5 sm:p-7 shadow-2xl">
+            {/* Top-Right Touch-Friendly Close Button */}
             <button
-              onClick={() => setRegistering(false)}
-              className="absolute right-4 top-4 text-muted-foreground"
+              type="button"
+              onClick={() => {
+                setRegistering(false);
+                setSubmitted(false);
+              }}
+              className="absolute right-4 top-4 z-10 flex size-9 items-center justify-center rounded-full bg-white/10 text-muted-foreground transition hover:bg-white/20 hover:text-white active:scale-95"
+              aria-label="Close"
             >
               <X className="size-5" />
             </button>
             {submitted ? (
-              <div className="py-6 text-center">
+              <div className="py-4 sm:py-6 text-center">
                 <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-[#25D366]/15 border border-[#25D366]/30 text-[#25D366]">
                   <Check className="size-7 text-[#25D366]" />
                 </div>
-                <h2 className="mt-4 font-display text-2xl font-bold uppercase">
+                <h2 className="mt-4 font-display text-2xl font-bold uppercase sm:text-3xl">
                   You&apos;re registered!
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
                   Your place was confirmed automatically and added to the participant list.
                 </p>
-                <div className="mt-6 rounded-xl border border-border bg-background p-4 text-left text-sm text-muted-foreground">
-                  <p className="font-semibold text-white flex items-center gap-2">
-                    <span className="inline-block size-2 rounded-full bg-[#25D366] animate-pulse" />
-                    Important Next Step: Join WhatsApp Group
+                <div className="mt-5 rounded-2xl border border-border bg-background/90 p-4 text-left text-sm text-muted-foreground">
+                  <p className="font-semibold text-white flex items-center gap-2 text-sm sm:text-base">
+                    <span className="inline-block size-2.5 rounded-full bg-[#25D366] animate-pulse" />
+                    Next Step: Join Tournament WhatsApp Group
                   </p>
-                  <ol className="mt-3 space-y-2 text-xs sm:text-sm">
-                    <li>1. <strong className="text-white">Join the WhatsApp group</strong> now for match check-in, fixtures, and announcements.</li>
-                    <li>2. Check in at least 15 minutes before your match.</li>
-                    <li>3. Play the published fixture and keep result evidence.</li>
-                    <li>4. Report your score; qualified players advance automatically.</li>
+                  <ol className="mt-3 space-y-2.5 text-xs sm:text-sm">
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-[#25D366]">1.</span>
+                      <span><strong className="text-white">Join the WhatsApp group</strong> now for match check-in, fixtures, and announcements.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-[#25D366]">2.</span>
+                      <span>Check in at least 15 minutes before your match.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-[#25D366]">3.</span>
+                      <span>Play the published fixture and keep result screenshot.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-[#25D366]">4.</span>
+                      <span>Report your score; qualified players advance automatically.</span>
+                    </li>
                   </ol>
-                  {tournament.format === "Single Group + Finals" && <p className="mt-3 border-t border-border pt-3 text-xs">Everyone plays in one group. The top four qualify for the semifinals; the two winners then play the final.</p>}
+                  {tournament.format === "Single Group + Finals" && (
+                    <p className="mt-3 border-t border-border/80 pt-3 text-xs">
+                      Everyone plays in one group. Top four qualify for semifinals; winners play the final.
+                    </p>
+                  )}
                 </div>
                 <a
                   className={cn(
                     buttonVariants({ size: "lg" }),
-                    "mt-6 w-full gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold text-base shadow-lg shadow-[#25D366]/25 border-none",
+                    "mt-5 w-full gap-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold text-base shadow-lg shadow-[#25D366]/25 border-none h-12",
                   )}
                   href={tournament.registrationGroupUrl || WHATSAPP_URL}
                   target="_blank"
                   rel="noreferrer"
                 >
-                  <WhatsAppIcon className="size-5" />
-                  Join Tournament WhatsApp Group
-                  <ArrowRight className="size-4" />
+                  <WhatsAppIcon className="size-5 shrink-0" />
+                  Join WhatsApp Group
+                  <ArrowRight className="size-4 shrink-0" />
                 </a>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="mt-2.5 w-full text-xs text-muted-foreground hover:text-white"
+                  onClick={() => {
+                    setRegistering(false);
+                    setSubmitted(false);
+                  }}
+                >
+                  Close & View Tournament
+                </Button>
               </div>
             ) : profile?.profileCompleted && !showFullForm ? (
               <div className="space-y-5">
