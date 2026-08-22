@@ -23,10 +23,10 @@ type FormState = {
   registrationEnabled: boolean;
 };
 
-const DISCORD_URL = "https://discord.gg/kbEtE5h6nt";
+const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/DcM0VixkixZ5QBYIXS6TW6?s=cl&p=a&mlu";
 const DEFAULT_EFOOTBALL_RULES = `Group stage: every player faces every other player once. The top four qualify for the semifinals (1st vs 4th and 2nd vs 3rd); the winners play the final.
 
-Check in on Discord at least 15 minutes before your scheduled match.
+Check in on WhatsApp at least 15 minutes before your scheduled match.
 
 Use a stable connection and the approved game settings. Deliberate disconnects or unfair play may result in a forfeit.
 
@@ -50,8 +50,8 @@ function makeInitial(gameId: GameId): FormState {
     name: "", slug: "", description: "", organizer: "",
     format: (gameId === "valorant" ? "Single Elimination" : "Single Group + Finals"),
     matchMode: "scrimmage", maxSlots: gameId === "valorant" ? 8 : 16,
-    bestOf: gameId === "valorant" ? 3 : 1, prizePool: "", registrationGroupUrl: DISCORD_URL,
-    registrationInstructions: "Your place is confirmed automatically after registration. Please join the Discord for check-in, fixtures, results, and announcements.",
+    bestOf: gameId === "valorant" ? 3 : 1, prizePool: "", registrationGroupUrl: WHATSAPP_GROUP_URL,
+    registrationInstructions: "Your place is confirmed automatically after registration. Please join the WhatsApp group for check-in, fixtures, results, and announcements.",
     rules: gameId === "valorant" ? valorantMatchModes.scrimmage.rules : DEFAULT_EFOOTBALL_RULES,
     startDate: "", endDate: "", registrationEnabled: true,
   };
@@ -151,7 +151,7 @@ export function CreateTournamentForm({ gameId }: { gameId: GameId }) {
 
           {step === 3 && <Panel title="Rules and registration" copy={isValorant ? "The selected match mode supplies its own rules. You can add event-specific details below." : "Define match conduct, eligibility, and result reporting."}>
             {isValorant && <div className="rounded-xl border border-primary/20 bg-primary/5 p-5"><p className="text-xs font-bold uppercase tracking-wider text-primary">{valorantMatchModes[form.matchMode].name} rules</p><p className="mt-2 text-sm leading-6 text-muted-foreground">{valorantMatchModes[form.matchMode].rules}</p></div>}
-            <Field label="Discord URL"><Input type="url" value={form.registrationGroupUrl} onChange={(event) => update("registrationGroupUrl", event.target.value)} placeholder={DISCORD_URL} /></Field>
+            <Field label="WhatsApp Group URL"><Input type="url" value={form.registrationGroupUrl} onChange={(event) => update("registrationGroupUrl", event.target.value)} placeholder={WHATSAPP_GROUP_URL} /></Field>
             <Field label="Registration instructions (optional)"><Textarea value={form.registrationInstructions} onChange={(event) => update("registrationInstructions", event.target.value)} rows={3} /></Field>
             <Field label="Tournament rules"><Textarea value={form.rules} onChange={(event) => update("rules", event.target.value)} rows={7} placeholder="Eligibility, check-in, map veto, reporting, disputes…" /></Field>
           </Panel>}

@@ -15,9 +15,11 @@ import {
   Flag,
   Radio,
   Shield,
+  Sparkles,
   Trophy,
   Users,
   X,
+  Zap,
 } from "lucide-react";
 import { getGameModule } from "@/lib/game-modules";
 import { Badge } from "@/components/ui/badge";
@@ -39,9 +41,17 @@ const tabs = [
   "Broadcast",
   "Rules",
 ] as const;
-const DISCORD_URL = "https://discord.gg/kbEtE5h6nt";
+const WHATSAPP_URL = "https://chat.whatsapp.com/DcM0VixkixZ5QBYIXS6TW6?s=cl&p=a&mlu";
 
-function DiscordIcon({ className }: { className?: string }) {
+function getRegistrationGroupUrl(url?: string | null) {
+  const trimmed = url?.trim() ?? "";
+  if (!trimmed || trimmed.toLowerCase().includes("discord") || !trimmed.startsWith("http")) {
+    return WHATSAPP_URL;
+  }
+  return trimmed;
+}
+
+function WhatsAppIcon({ className }: { className?: string }) {
   return (
     <svg
       className={className}
@@ -49,7 +59,7 @@ function DiscordIcon({ className }: { className?: string }) {
       fill="currentColor"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
     </svg>
   );
 }
@@ -89,8 +99,15 @@ export function TournamentDetail({
     api.arena.listAnnouncements,
     tournamentId ? { tournamentId } : "skip",
   );
+  const profile = useQuery(api.users.getProfile);
   const register = useMutation(api.arena.register);
+  const quickRegister = useMutation(api.arena.quickRegister);
   const { isAuthenticated } = useConvexAuth();
+  const userRegistration = useQuery(
+    api.arena.getRegistrationStatus,
+    tournamentId && isAuthenticated ? { tournamentId } : "skip",
+  );
+  const isUserRegistered = Boolean(userRegistration?.registered);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const tabParam = searchParams?.get("tab");
@@ -104,21 +121,50 @@ export function TournamentDetail({
   });
   const [registering, setRegistering] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [quickRegistering, setQuickRegistering] = useState(false);
+  const [showFullForm, setShowFullForm] = useState(false);
   const [error, setError] = useState("");
   const [registerCountry, setRegisterCountry] = useState("");
+  const [gameIdInput, setGameIdInput] = useState("");
+
   const byParticipant = useMemo(
     () => new Map((participants ?? []).map((p) => [p._id, p])),
     [participants],
   );
   const registrationAvailable = tournament
     ? tournament.registrationEnabled !== false &&
-      !["Draft", "Completed", "Cancelled"].includes(tournament.status)
+    !["Draft", "Completed", "Cancelled"].includes(tournament.status)
     : false;
+
+  const handleQuickRegister = async () => {
+    if (!tournamentId) return;
+    setError("");
+    setQuickRegistering(true);
+    try {
+      const selectedGameId = tournament?.gameId ?? "efootball";
+      await quickRegister({
+        tournamentId,
+        efootballId: selectedGameId === "efootball" ? gameIdInput.trim() || undefined : undefined,
+        valorantId: selectedGameId === "valorant" ? gameIdInput.trim() || undefined : undefined,
+      });
+      setSubmitted(true);
+      setRegistering(true);
+    } catch (cause) {
+      if (cause instanceof ConvexError) {
+        setError(typeof cause.data === "string" ? cause.data : "Registration failed.");
+      } else {
+        setError(cause instanceof Error ? cause.message : "Registration failed.");
+      }
+    } finally {
+      setQuickRegistering(false);
+    }
+  };
 
   const currentPath =
     pathname || (slug ? `/tournament/${slug}` : id ? `/tournaments/${id}` : "/");
   const signInUrlHero = `/sign-in?redirect_url=${encodeURIComponent(`${currentPath}?register=true`)}`;
   const signInUrlRegistration = `/sign-in?redirect_url=${encodeURIComponent(`${currentPath}?tab=Registration&register=true`)}`;
+  const game = getGameModule(tournament?.gameId);
 
   useEffect(() => {
     if (tabParam && (tabs as readonly string[]).includes(tabParam)) {
@@ -127,10 +173,20 @@ export function TournamentDetail({
   }, [tabParam]);
 
   useEffect(() => {
-    if (registerParam && isAuthenticated && registrationAvailable) {
+    if (registerParam && isAuthenticated && registrationAvailable && !isUserRegistered) {
       setRegistering(true);
     }
-  }, [registerParam, isAuthenticated, registrationAvailable]);
+  }, [registerParam, isAuthenticated, registrationAvailable, isUserRegistered]);
+
+  useEffect(() => {
+    if (profile && tournament) {
+      if (tournament.gameId === "valorant" && profile.valorantId) {
+        setGameIdInput(profile.valorantId);
+      } else if (profile.efootballId) {
+        setGameIdInput(profile.efootballId);
+      }
+    }
+  }, [profile, tournament]);
 
   if (tournament === undefined)
     return (
@@ -147,7 +203,7 @@ export function TournamentDetail({
         </h1>
       </div>
     );
-  const game = getGameModule(tournament.gameId);
+
   const completed = (matches ?? []).filter(
     (match) => match.status === "Completed",
   );
@@ -166,13 +222,14 @@ export function TournamentDetail({
       const roster =
         game.id === "valorant"
           ? [
-              { displayName: captainName!, role: "captain" as const },
-              ...[2, 3, 4, 5].map((number) => ({
-                displayName: String(form.get(`player${number}`)),
-                role: "player" as const,
-              })),
-            ]
+            { displayName: captainName!, role: "captain" as const },
+            ...[2, 3, 4, 5].map((number) => ({
+              displayName: String(form.get(`player${number}`)),
+              role: "player" as const,
+            })),
+          ]
           : undefined;
+      const rawGameId = String(form.get("gameIdInput") || "").trim();
       await register({
         tournamentId,
         applicantName: String(form.get("name")),
@@ -187,6 +244,8 @@ export function TournamentDetail({
             ? Number(form.get("playerRating"))
             : undefined,
         countryCode: String(form.get("country") || "") || undefined,
+        efootballId: game.id === "efootball" ? rawGameId || undefined : undefined,
+        valorantId: game.id === "valorant" ? rawGameId || undefined : undefined,
         acceptedRules: true,
         captainName,
         roster,
@@ -258,10 +317,37 @@ export function TournamentDetail({
               </span>
             )}
           </div>
-          {registrationAvailable && (
-            isAuthenticated ? <Button onClick={() => setRegistering(true)} size="lg" className="mt-8">Register free <ArrowRight className="size-4" /></Button>
-              : <Link href={signInUrlHero} className={cn(buttonVariants({ size: "lg" }), "mt-8")}>Sign in to register <ArrowRight className="size-4" /></Link>
-          )}
+          {isUserRegistered ? (
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-400 shadow-lg shadow-emerald-500/10">
+                <Check className="size-4 text-emerald-400" />
+                Already Registered ({userRegistration?.gamerTag || userRegistration?.name || "Confirmed"})
+              </div>
+              <a
+                href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(
+                  buttonVariants({ size: "lg" }),
+                  "gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold border-none shadow-md shadow-[#25D366]/20",
+                )}
+              >
+                <WhatsAppIcon className="size-4" />
+                Open WhatsApp Group
+                <ArrowRight className="size-4" />
+              </a>
+            </div>
+          ) : registrationAvailable ? (
+            isAuthenticated ? (
+              <Button onClick={() => setRegistering(true)} size="lg" className="mt-8">
+                Register free <ArrowRight className="size-4" />
+              </Button>
+            ) : (
+              <Link href={signInUrlHero} className={cn(buttonVariants({ size: "lg" }), "mt-8")}>
+                Sign in to register <ArrowRight className="size-4" />
+              </Link>
+            )
+          ) : null}
         </div>
       </section>
       {tournament.youtubeVideoId && (
@@ -299,13 +385,18 @@ export function TournamentDetail({
               key={item}
               onClick={() => setTab(item)}
               className={cn(
-                "shrink-0 border-b-2 px-4 py-4 text-sm font-semibold transition",
+                "inline-flex items-center gap-1.5 shrink-0 border-b-2 px-4 py-4 text-sm font-semibold transition",
                 tab === item
                   ? "border-primary text-white"
                   : "border-transparent text-muted-foreground hover:text-white",
               )}
             >
               {item}
+              {item === "Registration" && isUserRegistered && (
+                <span className="flex items-center gap-1 rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                  <Check className="size-2.5" /> Registered
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -314,6 +405,36 @@ export function TournamentDetail({
         {tab === "Overview" && (
           <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
             <div>
+              {isUserRegistered && (
+                <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 sm:p-5">
+                  <div className="flex items-center gap-3.5">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+                      <Check className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                        Player Entry Confirmed
+                      </p>
+                      <p className="font-semibold text-white">
+                        You are registered for this tournament. No further registration is required.
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={cn(
+                      buttonVariants({ size: "sm" }),
+                      "shrink-0 gap-2 font-bold bg-[#25D366] hover:bg-[#20bd5a] text-black border-none shadow-sm",
+                    )}
+                  >
+                    <WhatsAppIcon className="size-4" />
+                    WhatsApp Group
+                    <ArrowRight className="size-3.5" />
+                  </a>
+                </div>
+              )}
               <SectionTitle
                 eyebrow="Tournament progress"
                 title={
@@ -381,14 +502,14 @@ export function TournamentDetail({
                   <Empty text="No scheduled matches yet." />
                 )}
               </div>
-              <div className="mt-8 rounded-xl border border-border bg-card p-5 sm:p-6 transition hover:border-primary/40">
+              <div className="mt-8 rounded-xl border border-border bg-card p-5 sm:p-6 transition hover:border-[#25D366]/40">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-primary">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#25D366]">
                       Tournament Community
                     </p>
                     <h3 className="mt-1 font-display text-xl font-bold uppercase text-white">
-                      Join Discord
+                      Join WhatsApp Group
                     </h3>
                     <p className="mt-1 text-sm leading-6 text-muted-foreground">
                       Check in for matches, get live scheduling updates, and connect with tournament organizers and players.
@@ -397,14 +518,14 @@ export function TournamentDetail({
                   <a
                     className={cn(
                       buttonVariants({ size: "lg" }),
-                      "shrink-0 gap-2 font-semibold",
+                      "shrink-0 gap-2 font-semibold bg-[#25D366] hover:bg-[#20bd5a] text-black border-none shadow-md shadow-[#25D366]/20",
                     )}
-                    href={tournament.registrationGroupUrl || DISCORD_URL}
+                    href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
                     target="_blank"
                     rel="noreferrer"
                   >
-                    <DiscordIcon className="size-4" />
-                    Join Discord
+                    <WhatsAppIcon className="size-4" />
+                    Join WhatsApp Group
                     <ArrowRight className="size-4" />
                   </a>
                 </div>
@@ -439,8 +560,13 @@ export function TournamentDetail({
             game={game}
             available={registrationAvailable}
             isAuthenticated={isAuthenticated}
+            isRegistered={isUserRegistered}
+            userRegistration={userRegistration}
             signInUrl={signInUrlRegistration}
+            profile={profile}
             onRegister={() => setRegistering(true)}
+            onQuickRegister={handleQuickRegister}
+            quickRegistering={quickRegistering}
           />
         )}
         {tab === "Participants" && (
@@ -553,59 +679,184 @@ export function TournamentDetail({
         )}
       </main>
       {registering && (
-        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-4">
-          <div className="relative max-h-[94dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:max-h-[90vh] sm:rounded-2xl sm:p-6">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4">
+          <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-card p-6">
             <button
-              onClick={() => setRegistering(false)}
-              className="absolute right-4 top-4 text-muted-foreground"
+              type="button"
+              onClick={() => {
+                setRegistering(false);
+                setSubmitted(false);
+              }}
+              className="absolute right-4 top-4 z-10 flex size-9 items-center justify-center rounded-full bg-white/10 text-muted-foreground transition hover:bg-white/20 hover:text-white active:scale-95"
+              aria-label="Close"
             >
               <X className="size-5" />
             </button>
-            {submitted ? (
-              <div className="py-10 text-center">
-                <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10">
-                  <Check className="size-6 text-primary" />
+            {submitted || isUserRegistered ? (
+              <div className="py-4 sm:py-6 text-center">
+                <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-[#25D366]/15 border border-[#25D366]/30 text-[#25D366]">
+                  <Check className="size-7 text-[#25D366]" />
                 </div>
-                <h2 className="mt-5 font-display text-2xl font-bold uppercase">
-                  You&apos;re registered
+                <h2 className="mt-4 font-display text-2xl font-bold uppercase sm:text-3xl">
+                  {submitted ? "You're registered!" : "You are already registered"}
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Your place was approved automatically and you have been added to the participant list. No admin approval is needed.
+                  {submitted
+                    ? "Your place was confirmed automatically and added to the participant list."
+                    : "Your player entry is already confirmed on the participant list."}
                 </p>
-                <div className="mt-6 rounded-xl border border-border bg-background p-4 text-left text-sm text-muted-foreground">
-                  <p className="font-semibold text-white">What happens next</p>
-                  <ol className="mt-3 space-y-2">
-                    <li>1. Join Discord now for check-in, fixtures, and announcements.</li>
-                    <li>2. Check in at least 15 minutes before your match.</li>
-                    <li>3. Play the published fixture and keep result evidence.</li>
-                    <li>4. Report your score; qualified players advance automatically.</li>
+                <div className="mt-5 rounded-2xl border border-border bg-background/90 p-4 text-left text-sm text-muted-foreground">
+                  <p className="font-semibold text-white flex items-center gap-2 text-sm sm:text-base">
+                    <span className="inline-block size-2.5 rounded-full bg-[#25D366] animate-pulse" />
+                    Next Step: Join Tournament WhatsApp Group
+                  </p>
+                  <ol className="mt-3 space-y-2.5 text-xs sm:text-sm">
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-[#25D366]">1.</span>
+                      <span><strong className="text-white">Join the WhatsApp group</strong> now for match check-in, fixtures, and announcements.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-[#25D366]">2.</span>
+                      <span>Check in at least 15 minutes before your match.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-[#25D366]">3.</span>
+                      <span>Play the published fixture and keep result screenshot.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-[#25D366]">4.</span>
+                      <span>Report your score; qualified players advance automatically.</span>
+                    </li>
                   </ol>
-                  {tournament.format === "Single Group + Finals" && <p className="mt-3 border-t border-border pt-3">Everyone plays in one group. The top four qualify for the semifinals; the two winners then play the final.</p>}
+                  {tournament.format === "Single Group + Finals" && (
+                    <p className="mt-3 border-t border-border/80 pt-3 text-xs">
+                      Everyone plays in one group. Top four qualify for semifinals; winners play the final.
+                    </p>
+                  )}
                 </div>
                 <a
-                  className={cn(buttonVariants(), "mt-6")}
-                  href={tournament.registrationGroupUrl || DISCORD_URL}
+                  className={cn(
+                    buttonVariants({ size: "lg" }),
+                    "mt-5 w-full gap-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold text-base shadow-lg shadow-[#25D366]/25 border-none h-12",
+                  )}
+                  href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Please join the Discord <ArrowRight className="size-4" />
+                  <WhatsAppIcon className="size-5 shrink-0" />
+                  Join WhatsApp Group
+                  <ArrowRight className="size-4 shrink-0" />
                 </a>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="mt-2.5 w-full text-xs text-muted-foreground hover:text-white"
+                  onClick={() => {
+                    setRegistering(false);
+                    setSubmitted(false);
+                  }}
+                >
+                  Close & View Tournament
+                </Button>
+              </div>
+            ) : profile?.profileCompleted && !showFullForm ? (
+              <div className="space-y-5">
+                <p className="text-xs font-bold uppercase tracking-wider text-primary">
+                  ⚡ 1-Click Fast Entry · Secured by Clerk
+                </p>
+                <h2 className="font-display text-3xl font-bold uppercase">
+                  Ready to compete
+                </h2>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Your player profile is verified. Click below to register instantly without re-typing your details.
+                </p>
+
+                <div className="rounded-2xl border border-primary/40 bg-primary/10 p-5 text-left space-y-3">
+                  <div>
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
+                      <Zap className="size-4" /> Verified Player Entry
+                    </div>
+                    <h3 className="mt-1 font-display text-2xl font-bold uppercase text-foreground">
+                      {profile.gamerTag || profile.name}
+                    </h3>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {countryName(profile.countryCode || "")} · {profile.phone} · {profile.email}
+                    </p>
+                    {game.id === "valorant" && (
+                      <p className="mt-1 text-xs font-medium text-primary">
+                        Captain: {profile.captainName || profile.gamerTag || profile.name}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Optional Game ID configuration */}
+                  <div className="rounded-xl border border-primary/20 bg-background/80 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-semibold text-foreground">
+                      <span className="flex items-center gap-1.5 text-primary">
+                        {game.id === "efootball" ? "⚽ eFootball User ID / Konami ID" : "🎯 VALORANT Riot ID & Tag"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">Optional</span>
+                    </div>
+                    <Input
+                      value={gameIdInput}
+                      onChange={(e) => setGameIdInput(e.target.value)}
+                      placeholder={game.id === "efootball" ? "e.g. 123-456-789 or Konami Name" : "e.g. Player#EUW"}
+                      className="h-9 text-xs bg-card"
+                    />
+                    <p className="text-[10px] text-muted-foreground">Saves automatically to your profile for this and future events.</p>
+                  </div>
+                </div>
+
+                {error && <p className="text-sm text-red-400">{error}</p>}
+
+                <Button
+                  size="lg"
+                  className="w-full gap-2 bg-gradient-to-r from-red-600 to-rose-600 font-bold shadow-lg shadow-red-500/20"
+                  onClick={handleQuickRegister}
+                  disabled={quickRegistering}
+                >
+                  <Zap className="size-4" />
+                  {quickRegistering ? "Confirming Registration..." : `⚡ 1-Click Register for ${game.name}`}
+                </Button>
+
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowFullForm(true)}
+                    className="text-xs text-muted-foreground underline hover:text-foreground"
+                  >
+                    Need custom roster or details for this event? Edit details
+                  </button>
+                </div>
               </div>
             ) : (
               <>
-                <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                  Free · Secured by Clerk
-                </p>
-                <h2 className="mt-2 font-display text-3xl font-bold uppercase">
-                  Enter the arena
-                </h2>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-primary">
+                      Free · Secured by Clerk
+                    </p>
+                    <h2 className="mt-1 font-display text-3xl font-bold uppercase">
+                      Enter the arena
+                    </h2>
+                  </div>
+                  {profile?.profileCompleted && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowFullForm(false)}
+                      className="text-xs"
+                    >
+                      <Zap className="size-3 text-primary mr-1" /> Use 1-Click
+                    </Button>
+                  )}
+                </div>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   Your contact details stay private to you and the tournament organizer. Public pages show only competition information.
                 </p>
                 <form onSubmit={submitRegistration} className="mt-6 space-y-4">
                   <Input
                     name="name"
-                    autoComplete="name"
                     placeholder={
                       game.id === "valorant" ? "Team name" : "Player name"
                     }
@@ -614,37 +865,18 @@ export function TournamentDetail({
                   <Input
                     name="email"
                     type="email"
-                    autoComplete="email"
                     placeholder="Contact email"
                     required
                   />
-                  <div className="space-y-2">
-                    <label htmlFor="registration-whatsapp" className="text-xs font-semibold text-foreground">WhatsApp number</label>
-                    <Input
-                      id="registration-whatsapp"
-                      name="phone"
-                      type="tel"
-                      inputMode="tel"
-                      autoComplete="tel"
-                      placeholder="+968 9123 4567"
-                      aria-describedby="whatsapp-help"
-                      required
-                    />
-                    <p id="whatsapp-help" className="text-xs leading-5 text-muted-foreground">Include the country code. The organizer will use this private number for tournament contact.</p>
-                  </div>
-                  {game.id === "efootball" && (
-                    <div className="grid gap-3 rounded-xl border border-border bg-background p-4 sm:grid-cols-2">
-                      <div className="space-y-2 sm:col-span-2">
-                        <p className="text-xs font-bold uppercase tracking-wider text-primary">eFootball player details</p>
-                        <p className="text-xs leading-5 text-muted-foreground">Use the Konami ID and current rating visible in your game account.</p>
-                      </div>
-                      <Input name="konamiId" autoComplete="off" minLength={3} maxLength={40} placeholder="Konami ID" required />
-                      <Input name="playerRating" type="number" inputMode="numeric" min={0} max={5000} step={1} placeholder="Current rating" required />
-                    </div>
-                  )}
+                  <Input
+                    name="phone"
+                    type="tel"
+                    placeholder="Phone number"
+                    required
+                  />
                   <Select
                     name="country"
-                    value={registerCountry}
+                    value={registerCountry || profile?.countryCode || ""}
                     onValueChange={(value) => setRegisterCountry((value ?? "").toUpperCase())}
                     required
                   >
@@ -652,16 +884,26 @@ export function TournamentDetail({
                       <span
                         className={cn(
                           "truncate text-left",
-                          registerCountry
+                          registerCountry || profile?.countryCode
                             ? "text-foreground"
                             : "text-muted-foreground",
                         )}
                       >
-                        {countryName(registerCountry) || "Choose your country"}
+                        {countryName(registerCountry || profile?.countryCode || "") || "Choose your country"}
                       </span>
                     </SelectTrigger>
                     <SelectContent>{COUNTRY_OPTIONS.map((country) => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}</SelectContent>
                   </Select>
+
+                  {/* Optional Game ID field */}
+                  <div>
+                    <Input
+                      name="gameIdInput"
+                      defaultValue={game.id === "efootball" ? profile?.efootballId || "" : profile?.valorantId || ""}
+                      placeholder={game.id === "efootball" ? "eFootball ID / Konami Name (Optional)" : "VALORANT Riot ID & Tag (Optional)"}
+                    />
+                  </div>
+
                   {game.id === "valorant" && (
                     <div className="space-y-3 rounded-xl border border-border bg-background p-4">
                       <p className="text-xs font-bold uppercase tracking-wider text-primary">
@@ -669,6 +911,7 @@ export function TournamentDetail({
                       </p>
                       <Input
                         name="captain"
+                        defaultValue={profile?.captainName || profile?.gamerTag || profile?.name || ""}
                         placeholder="Captain / player 1"
                         required
                       />
@@ -729,34 +972,123 @@ function RegistrationSection({
   game,
   available,
   isAuthenticated,
+  isRegistered,
+  userRegistration,
   signInUrl,
+  profile,
   onRegister,
+  onQuickRegister,
+  quickRegistering,
 }: {
   tournament: any;
   game: ReturnType<typeof getGameModule>;
   available: boolean;
   isAuthenticated: boolean;
+  isRegistered?: boolean;
+  userRegistration?: any;
   signInUrl: string;
+  profile?: any;
   onRegister: () => void;
+  onQuickRegister?: () => void;
+  quickRegistering?: boolean;
 }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <div>
         <SectionTitle
-          eyebrow="Public registration"
+          eyebrow={isRegistered ? "Entry status" : "Public registration"}
           title={
-            available
-              ? "Sign in and join securely"
-              : "Registration is closed"
+            isRegistered
+              ? "You are registered"
+              : available
+                ? "Sign in and join securely"
+                : "Registration is closed"
           }
         />
         <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground">
-          Registration is free and automatic. Clerk links the entry to your account, while contact details remain visible only to you and the tournament organizer.
+          {isRegistered
+            ? `Your player entry has been approved and confirmed for ${tournament.name}. You are active on the competitor list.`
+            : "Registration is free and automatic. Clerk links the entry to your account, while contact details remain visible only to you and the tournament organizer."}
         </p>
-        {!available && <p className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-200">This tournament is not accepting registrations right now. You can still review fixtures, standings, and rules.</p>}
-        {available && (isAuthenticated
-          ? <Button onClick={onRegister} size="lg" className="mt-7">Register for {game.name}<ArrowRight className="size-4" /></Button>
-          : <Link href={signInUrl} className={cn(buttonVariants({ size: "lg" }), "mt-7")}>Sign in to register<ArrowRight className="size-4" /></Link>)}
+        {isRegistered ? (
+          <div className="mt-7 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 sm:p-7">
+            <div className="flex items-center gap-3">
+              <div className="flex size-11 items-center justify-center rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                <Check className="size-6 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                  Player Entry Confirmed
+                </p>
+                <h3 className="text-xl font-bold uppercase font-display text-white">
+                  {userRegistration?.gamerTag || userRegistration?.name || "Player Verified"}
+                </h3>
+              </div>
+            </div>
+            <div className="mt-5 rounded-xl border border-border bg-background/90 p-4 text-sm text-muted-foreground space-y-2">
+              <p className="font-semibold text-white">Next Steps for Match Day:</p>
+              <ol className="space-y-2 text-xs sm:text-sm">
+                <li>1. Join the tournament WhatsApp group for live scheduling, fixtures, and announcements.</li>
+                <li>2. Check in at least 15 minutes before your scheduled fixture.</li>
+                <li>3. Play your match and submit screenshot evidence.</li>
+              </ol>
+            </div>
+            <a
+              href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
+              target="_blank"
+              rel="noreferrer"
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                "mt-6 w-full sm:w-auto gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold border-none shadow-md shadow-[#25D366]/20",
+              )}
+            >
+              <WhatsAppIcon className="size-5 shrink-0" />
+              Open WhatsApp Group
+              <ArrowRight className="size-4 shrink-0" />
+            </a>
+          </div>
+        ) : !available ? (
+          <p className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-200">
+            This tournament is not accepting registrations right now. You can still review fixtures, standings, and rules.
+          </p>
+        ) : isAuthenticated ? (
+          profile?.profileCompleted && onQuickRegister ? (
+            <div className="mt-6 space-y-3">
+              <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4 max-w-md">
+                <p className="text-xs font-bold uppercase text-primary flex items-center gap-1.5">
+                  <Zap className="size-3.5" /> 1-Click Fast Registration Active
+                </p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  Player: {profile.gamerTag || profile.name} ({countryName(profile.countryCode)})
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  onClick={onQuickRegister}
+                  size="lg"
+                  disabled={quickRegistering}
+                  className="gap-2 bg-gradient-to-r from-red-600 to-rose-600 font-bold shadow-lg shadow-red-500/20"
+                >
+                  <Zap className="size-4" />
+                  {quickRegistering ? "Registering..." : `⚡ 1-Click Register for ${game.name}`}
+                </Button>
+                <Button onClick={onRegister} variant="outline" size="lg">
+                  Customize Details
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button onClick={onRegister} size="lg" className="mt-7">
+              Register for {game.name}
+              <ArrowRight className="size-4" />
+            </Button>
+          )
+        ) : (
+          <Link href={signInUrl} className={cn(buttonVariants({ size: "lg" }), "mt-7")}>
+            Sign in to register
+            <ArrowRight className="size-4" />
+          </Link>
+        )}
       </div>
       <aside className="rounded-xl border border-border bg-card p-6">
         <p className="text-xs font-bold uppercase tracking-wider text-primary">
@@ -771,7 +1103,7 @@ function RegistrationSection({
             <strong className="text-white">2.</strong> You are approved and added to the participant list automatically.
           </li>
           <li>
-            <strong className="text-white">3.</strong> Please join the Discord for check-in, fixtures, results, and announcements.
+            <strong className="text-white">3.</strong> Please join the WhatsApp group for check-in, fixtures, results, and announcements.
           </li>
           <li><strong className="text-white">4.</strong> Check in 15 minutes early, play your scheduled match, and report the result with evidence.</li>
         </ol>
@@ -781,12 +1113,16 @@ function RegistrationSection({
           </p>
         )}
         <a
-          className={cn(buttonVariants({ variant: "outline" }), "mt-5 w-full")}
-          href={tournament.registrationGroupUrl || DISCORD_URL}
+          className={cn(
+            buttonVariants({ variant: "outline" }),
+            "mt-5 w-full gap-2 border-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/10 hover:text-[#25D366]",
+          )}
+          href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
           target="_blank"
           rel="noreferrer"
         >
-          Please join the Discord
+          <WhatsAppIcon className="size-4" />
+          Join WhatsApp Group
           <ArrowRight className="size-4" />
         </a>
         {tournament.prizePool && (
@@ -909,15 +1245,15 @@ function Statistics({
   const valorant = gameId === "valorant";
   const cards = valorant
     ? [
-        { label: "Maps", value: statistics.totals.maps },
-        { label: "Rounds", value: statistics.totals.rounds },
-        { label: "Kills", value: statistics.totals.kills },
-      ]
+      { label: "Maps", value: statistics.totals.maps },
+      { label: "Rounds", value: statistics.totals.rounds },
+      { label: "Kills", value: statistics.totals.kills },
+    ]
     : [
-        { label: "Goals", value: statistics.totals.goals },
-        { label: "Shots", value: statistics.totals.shots },
-        { label: "Cards", value: statistics.totals.cards },
-      ];
+      { label: "Goals", value: statistics.totals.goals },
+      { label: "Shots", value: statistics.totals.shots },
+      { label: "Cards", value: statistics.totals.cards },
+    ];
   return (
     <div>
       <SectionTitle
@@ -1012,7 +1348,7 @@ function Bracket({
                         className={cn(
                           "flex justify-between border-b border-border px-4 py-3 text-sm",
                           match.winnerId === match.player1Id &&
-                            "font-bold text-primary",
+                          "font-bold text-primary",
                         )}
                       >
                         <span>{names.get(match.player1Id)?.name ?? "TBD"}</span>
@@ -1022,7 +1358,7 @@ function Bracket({
                         className={cn(
                           "flex justify-between px-4 py-3 text-sm",
                           match.winnerId === match.player2Id &&
-                            "font-bold text-primary",
+                          "font-bold text-primary",
                         )}
                       >
                         <span>{names.get(match.player2Id)?.name ?? "TBD"}</span>

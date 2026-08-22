@@ -161,7 +161,7 @@ export default function SettingsPage() {
 
       <SettingsSection title="Registration" description="Control availability and participant instructions.">
         <Toggle label="Registration available" description="Turn this off to stop new public registrations." checked={registrationEnabled} onCheckedChange={setRegistrationEnabled} />
-        <Field label="Discord URL"><Input type="url" value={registrationGroupUrl} onChange={(event) => setRegistrationGroupUrl(event.target.value)} placeholder="https://discord.gg/kbEtE5h6nt" /></Field>
+        <Field label="WhatsApp Group URL"><Input type="url" value={registrationGroupUrl} onChange={(event) => setRegistrationGroupUrl(event.target.value)} placeholder="https://chat.whatsapp.com/DcM0VixkixZ5QBYIXS6TW6?s=cl&p=a&mlu" /></Field>
         <Field label="Registration instructions"><Textarea value={registrationInstructions} onChange={(event) => setRegistrationInstructions(event.target.value)} rows={4} /></Field>
       </SettingsSection>
 

@@ -7,13 +7,36 @@ import { codesMatch, generateTournamentAdminCode, requireTournamentAdmin } from 
 import { requireIdentity } from "./model/auth";
 import { parseYouTubeVideoId } from "./model/youtube";
 
+const DEFAULT_WHATSAPP_URL = "https://chat.whatsapp.com/DcM0VixkixZ5QBYIXS6TW6?s=cl&p=a&mlu";
+const DEFAULT_REGISTRATION_INSTRUCTIONS = "Your place is confirmed automatically after registration. Please join the WhatsApp group for check-in, fixtures, results, and announcements.";
+
 const publicTournament = (tournament: Doc<"tournaments">) => {
   const { adminCode, ownerToken, ...rest } = tournament;
-  return { ...rest, gameId: rest.gameId ?? "efootball", hasAdminCode: Boolean(adminCode) };
-};
+  const rawUrl = rest.registrationGroupUrl?.trim() ?? "";
+  const registrationGroupUrl =
+    rawUrl && !rawUrl.toLowerCase().includes("discord") && rawUrl.startsWith("http")
+      ? rawUrl
+      : DEFAULT_WHATSAPP_URL;
 
-const DEFAULT_DISCORD_URL = "https://discord.gg/kbEtE5h6nt";
-const DEFAULT_REGISTRATION_INSTRUCTIONS = "Your place is confirmed automatically after registration. Please join the Discord for check-in, fixtures, results, and announcements.";
+  let registrationInstructions = rest.registrationInstructions;
+  if (registrationInstructions && registrationInstructions.toLowerCase().includes("discord")) {
+    registrationInstructions = registrationInstructions.replace(/discord/gi, "WhatsApp");
+  }
+
+  let rules = rest.rules;
+  if (rules && rules.toLowerCase().includes("discord")) {
+    rules = rules.replace(/discord/gi, "WhatsApp");
+  }
+
+  return {
+    ...rest,
+    gameId: rest.gameId ?? "efootball",
+    hasAdminCode: Boolean(adminCode),
+    registrationGroupUrl,
+    registrationInstructions: registrationInstructions ?? DEFAULT_REGISTRATION_INSTRUCTIONS,
+    rules: rules ?? defaultTournamentRules(rest.format),
+  };
+};
 
 function defaultTournamentRules(format: Doc<"tournaments">["format"]) {
   const progression = format === "Single Group + Finals"
@@ -21,7 +44,7 @@ function defaultTournamentRules(format: Doc<"tournaments">["format"]) {
     : "The organizer will publish fixtures and progression before the first match.";
   return [
     progression,
-    "Check in on Discord at least 15 minutes before your scheduled match.",
+    "Check in on WhatsApp at least 15 minutes before your scheduled match.",
     "Use a stable connection and the approved game settings. Deliberate disconnects or unfair play may result in a forfeit.",
     "Both competitors must report the result promptly. Keep a screenshot or recording as evidence.",
     "Raise disputes with evidence before the next round begins. The organizer's final ruling applies.",
@@ -71,7 +94,7 @@ export const create = mutation({
       ownerToken: identity.tokenIdentifier,
       gameId: selectedGame,
       matchMode,
-      registrationGroupUrl: args.registrationGroupUrl ?? DEFAULT_DISCORD_URL,
+      registrationGroupUrl: args.registrationGroupUrl ?? DEFAULT_WHATSAPP_URL,
       registrationInstructions: args.registrationInstructions ?? DEFAULT_REGISTRATION_INSTRUCTIONS,
       rules: args.rules ?? (matchMode ? valorantModeRules(matchMode).rules : defaultTournamentRules(args.format)),
       registrationEnabled: args.registrationEnabled ?? true,

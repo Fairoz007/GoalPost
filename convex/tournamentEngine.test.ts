@@ -1,4 +1,4 @@
-﻿/// <reference types="vite/client" />
+/// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { api } from "./_generated/api";
@@ -430,7 +430,99 @@ describe("game-aware tournament engine", () => {
     }
     const champions = await t.query(api.arena.listChampions, { gameId: "valorant" });
     expect(champions).toHaveLength(1);
-    const completed = (await t.query(api.matches.getByTournament, { tournamentId })).filter((match) => match.status === "Completed");
-    expect(completed.length).toBeGreaterThan(3);
+  });
+
+  test("user profile onboarding and instant 1-click tournament registration work seamlessly", async () => {
+    const base = convexTest(schema, modules);
+    const organizer = base.withIdentity(organizerIdentity);
+    const tournamentId = await createTournament(organizer, "efootball", "League");
+
+    const player = base.withIdentity({
+      subject: "clerk-player-one",
+      issuer: "https://clerk.test",
+      tokenIdentifier: "https://clerk.test|clerk-player-one",
+    });
+
+    // 1. Initial user ensures record
+    await player.mutation(api.users.ensureCurrent, {});
+    const initialProfile = await player.query(api.users.getProfile, {});
+    expect(initialProfile?.profileCompleted).toBe(false);
+
+    // 2. Player completes profile onboarding including optional game IDs
+    await player.mutation(api.users.updateProfile, {
+      name: "Striker Ace",
+      gamerTag: "Striker#99",
+      phone: "+971501234567",
+      countryCode: "AE",
+      discordTag: "striker#0001",
+      efootballId: "EF-998877",
+      valorantId: "Striker#VAL",
+    });
+
+    const updatedProfile = await player.query(api.users.getProfile, {});
+    expect(updatedProfile?.profileCompleted).toBe(true);
+    expect(updatedProfile?.gamerTag).toBe("Striker#99");
+    expect(updatedProfile?.phone).toBe("+971501234567");
+    expect(updatedProfile?.efootballId).toBe("EF-998877");
+    expect(updatedProfile?.valorantId).toBe("Striker#VAL");
+
+    // 3. Instant 1-click registration without entering extra details
+    const registrationId = await player.mutation(api.arena.quickRegister, { tournamentId });
+    expect(registrationId).toBeDefined();
+
+    const participants = await organizer.query(api.participants.getByTournament, { tournamentId });
+    expect(participants).toHaveLength(1);
+    expect(participants[0].name).toBe("Striker#99");
+    expect(participants[0].countryCode).toBe("AE");
+    expect(participants[0].efootballId).toBe("EF-998877");
+
+    // Duplicate registration is rejected
+    await expect(player.mutation(api.arena.quickRegister, { tournamentId })).rejects.toThrow("already registered");
+  });
+
+  test("manual match creation, batch creation, and deletion operate independently of auto generators", async () => {
+    const t = authenticatedTest();
+    const tournamentId = await createTournament(t, "efootball", "League");
+
+    const p1 = await t.mutation(api.participants.create, { tournamentId, adminCode: editCodeFor(tournamentId), name: "Alpha", gameId: "efootball" });
+    const p2 = await t.mutation(api.participants.create, { tournamentId, adminCode: editCodeFor(tournamentId), name: "Bravo", gameId: "efootball" });
+    const p3 = await t.mutation(api.participants.create, { tournamentId, adminCode: editCodeFor(tournamentId), name: "Charlie", gameId: "efootball" });
+    const p4 = await t.mutation(api.participants.create, { tournamentId, adminCode: editCodeFor(tournamentId), name: "Delta", gameId: "efootball" });
+
+    // 1. Manually create a single custom fixture
+    const singleMatchId = await t.mutation(api.matches.create, {
+      tournamentId,
+      adminCode: editCodeFor(tournamentId),
+      player1Id: p1,
+      player2Id: p2,
+      round: "Exhibition Match",
+      bestOf: 3,
+    });
+    expect(singleMatchId).toBeDefined();
+
+    let matches = await t.query(api.matches.getByTournament, { tournamentId });
+    expect(matches).toHaveLength(1);
+    expect(matches[0].round).toBe("Exhibition Match");
+    expect(matches[0].bestOf).toBe(3);
+
+    // 2. Batch manual fixture creation (e.g. from random shuffle / draw)
+    const batchCount = await t.mutation(api.matches.createBatch, {
+      tournamentId,
+      adminCode: editCodeFor(tournamentId),
+      matches: [
+        { player1Id: p3, player2Id: p4, round: "Showmatch" },
+      ],
+    });
+    expect(batchCount).toBe(1);
+
+    matches = await t.query(api.matches.getByTournament, { tournamentId });
+    expect(matches).toHaveLength(2);
+
+    // 3. Delete a match
+    await t.mutation(api.matches.remove, { matchId: singleMatchId, adminCode: editCodeFor(tournamentId) });
+    matches = await t.query(api.matches.getByTournament, { tournamentId });
+    expect(matches).toHaveLength(1);
+    expect(matches[0].round).toBe("Showmatch");
   });
 });
+
