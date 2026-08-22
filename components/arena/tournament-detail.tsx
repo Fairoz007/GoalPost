@@ -366,7 +366,7 @@ export function TournamentDetail({
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl shadow-black/30">
               <iframe
                 className="aspect-video w-full"
-                src={`https://www.youtube-nocookie.com/embed/${tournament.youtubeVideoId}`}
+                src={`https://www.youtube-nocookie.com/embed/${tournament.youtubeVideoId}?autoplay=1&mute=1&playsinline=1&rel=0`}
                 title={`${tournament.name} tournament stream`}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 referrerPolicy="strict-origin-when-cross-origin"
