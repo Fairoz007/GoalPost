@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireIdentity } from "./model/auth";
+import { normalizeWhatsAppNumber } from "./model/contact";
 
 const publicUser = v.object({
   _id: v.id("users"),
@@ -129,7 +130,7 @@ export const updateProfile = mutation({
       .unique();
     const cleanName = args.name.trim();
     const cleanGamerTag = args.gamerTag?.trim() || cleanName;
-    const cleanPhone = args.phone.trim();
+    const cleanPhone = normalizeWhatsAppNumber(args.phone);
     const cleanCountry = args.countryCode.trim().toUpperCase();
     const cleanDiscord = args.discordTag?.trim();
     const cleanEfootballId = args.efootballId?.trim();
@@ -138,7 +139,6 @@ export const updateProfile = mutation({
 
     if (!cleanName) throw new Error("Full name is required.");
     if (!cleanCountry) throw new Error("Please select your country.");
-    if (cleanPhone.replace(/\D/g, "").length < 7) throw new Error("Please enter a valid phone number.");
 
     const updateData = {
       name: cleanName,

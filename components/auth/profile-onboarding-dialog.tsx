@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
-import { Check, Gamepad2, Shield, Sparkles, User, UserCheck, X } from 'lucide-react'
+import { Check, Gamepad2, Sparkles, UserCheck, X } from 'lucide-react'
 import { api } from '@/convex/_generated/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -66,12 +66,18 @@ export function ProfileOnboardingDialog({ forceOpen, onClose }: ProfileOnboardin
     try {
       const cleanName = name.trim()
       const cleanGamerTag = gamerTag.trim() || cleanName
-      const cleanPhone = phone.trim()
+      const cleanPhone = phone.replace(/[\s().-]/g, '')
       const cleanCountry = countryCode.trim().toUpperCase()
 
       if (!cleanName) throw new Error('Your full name is required.')
       if (!cleanCountry) throw new Error('Please select your country.')
-      if (cleanPhone.replace(/\D/g, '').length < 7) throw new Error('Please enter a valid phone number.')
+      if (!/^\+[1-9]\d{7,14}$/.test(cleanPhone)) {
+        throw new Error('Enter a valid WhatsApp number with country code, for example +968 9123 4567.')
+      }
+      const phoneDigits = cleanPhone.slice(1)
+      if (/^(\d)\1+$/.test(phoneDigits) || '01234567890123456789'.includes(phoneDigits)) {
+        throw new Error('Enter a genuine WhatsApp contact number.')
+      }
 
       await updateProfile({
         name: cleanName,
@@ -181,17 +187,18 @@ export function ProfileOnboardingDialog({ forceOpen, onClose }: ProfileOnboardin
             {/* Phone Number */}
             <div>
               <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Contact Phone Number <span className="text-primary">*</span>
+                WhatsApp Number <span className="text-primary">*</span>
               </Label>
               <Input
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="e.g. +971 50 123 4567"
+                placeholder="e.g. +968 9123 4567"
+                autoComplete="tel"
                 required
                 className="mt-1.5 h-10 sm:h-11 text-sm"
               />
-              <p className="mt-1 text-[10px] text-muted-foreground">Used strictly by organizers for match check-in coordination.</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">Required so tournament organizers can contact you for match check-in.</p>
             </div>
 
             {/* Country Selection */}

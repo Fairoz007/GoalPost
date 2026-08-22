@@ -26,6 +26,7 @@ type CompetitorInput = {
   countryCode?: string;
   flag?: string;
   efootballId?: string;
+  konamiId?: string;
   valorantId?: string;
   captain?: string;
   seed?: number;
@@ -132,6 +133,7 @@ export async function insertCompetitor(ctx: MutationCtx, args: CompetitorInput) 
     countryCode: args.countryCode,
     flag: args.flag,
     efootballId: args.efootballId,
+    konamiId: args.konamiId,
     valorantId: args.valorantId,
     captain: args.captain,
     seed: args.seed,
@@ -148,7 +150,8 @@ export const create = mutation({
     name: v.string(), tournamentId: v.id("tournaments"), userId: v.optional(v.id("users")), adminCode: v.optional(v.string()), slug: v.optional(v.string()), gameId: v.optional(gameId),
     kind: v.optional(v.union(v.literal("player"), v.literal("team"))), teamId: v.optional(v.id("teams")),
     teamName: v.optional(v.string()), logoUrl: v.optional(v.string()), avatarUrl: v.optional(v.string()),
-    countryCode: v.optional(v.string()), flag: v.optional(v.string()), captain: v.optional(v.string()),
+    countryCode: v.optional(v.string()), flag: v.optional(v.string()), efootballId: v.optional(v.string()),
+    konamiId: v.optional(v.string()), valorantId: v.optional(v.string()), captain: v.optional(v.string()),
     seed: v.optional(v.number()), roster: v.optional(v.array(rosterMember)),
   },
   returns: v.id("participants"),

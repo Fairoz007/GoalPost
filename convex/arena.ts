@@ -5,6 +5,7 @@ import { rulesFor } from "./gameModules";
 import { competitorRankingKey, insertCompetitor } from "./participants";
 import { requireTournamentAdmin } from "./tournamentAuth";
 import { requireIdentity } from "./model/auth";
+import { normalizeWhatsAppNumber } from "./model/contact";
 
 export const listRankings = query({
   args: { gameId, limit: v.optional(v.number()) },
@@ -93,6 +94,7 @@ export const getPlayer = query({
 export const register = mutation({
   args: {
     tournamentId: v.id("tournaments"), applicantName: v.string(), applicantEmail: v.string(), phoneNumber: v.string(),
+    efootballId: v.optional(v.string()), konamiId: v.optional(v.string()), valorantId: v.optional(v.string()), playerRating: v.optional(v.number()),
     teamId: v.optional(v.id("teams")), countryCode: v.optional(v.string()), acceptedRules: v.boolean(),
     captainName: v.optional(v.string()),
     roster: v.optional(v.array(v.object({
@@ -109,11 +111,11 @@ export const register = mutation({
     if (!args.acceptedRules) throw new ConvexError("You must accept the tournament rules.");
     const applicantName = args.applicantName.trim();
     const applicantEmail = args.applicantEmail.trim().toLowerCase();
-    const phoneNumber = args.phoneNumber.trim();
+    const phoneNumber = normalizeWhatsAppNumber(args.phoneNumber);
+    const countryCode = args.countryCode?.trim().toUpperCase();
     if (!applicantName) throw new ConvexError("Your name is required.");
     if (!countryCode) throw new ConvexError("Choose your country.");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(applicantEmail)) throw new ConvexError("Enter a valid email address.");
-    if (phoneNumber.replace(/\D/g, "").length < 7) throw new ConvexError("Enter a valid phone number.");
     const selectedGame = tournament.gameId ?? "efootball";
     const legacyEfootballId = args.efootballId?.trim();
     const konamiId = args.konamiId?.trim() || legacyEfootballId;
@@ -128,6 +130,10 @@ export const register = mutation({
       if (participants.length >= tournament.maxSlots) throw new ConvexError("Registration is not available because this tournament is full.");
     }
     const rules = rulesFor(selectedGame);
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
     const priorRegistration = await ctx.db
       .query("registrations")
       .withIndex("by_ownerToken_and_tournamentId", (q) =>
@@ -156,8 +162,6 @@ export const register = mutation({
       playerRating: args.playerRating,
       teamId: args.teamId,
       countryCode,
-      efootballId: efootballId || undefined,
-      valorantId: valorantId || undefined,
       acceptedRules: args.acceptedRules,
       captainName: args.captainName,
       gameId: selectedGame,
@@ -172,8 +176,9 @@ export const register = mutation({
       name: applicantName,
       gameId: selectedGame,
       countryCode,
-      efootballId: efootballId || undefined,
-      valorantId: valorantId || undefined,
+      efootballId: legacyEfootballId,
+      konamiId,
+      valorantId: args.valorantId?.trim(),
       captain: args.captainName,
       teamId: args.teamId,
       roster,
@@ -200,7 +205,9 @@ export const quickRegister = mutation({
     phoneNumber: v.optional(v.string()),
     countryCode: v.optional(v.string()),
     efootballId: v.optional(v.string()),
+    konamiId: v.optional(v.string()),
     valorantId: v.optional(v.string()),
+    playerRating: v.optional(v.number()),
     captainName: v.optional(v.string()),
     roster: v.optional(v.array(v.object({
       displayName: v.string(),
@@ -223,9 +230,10 @@ export const quickRegister = mutation({
     const applicantName = (args.applicantName || currentUser?.gamerTag || currentUser?.name || identity.name || "").trim();
     const rawEmail = args.applicantEmail || currentUser?.email || identity.email || (identity.subject ? `${identity.subject.replace(/[^a-zA-Z0-9._-]/g, '')}@player.donestudio.in` : "");
     const applicantEmail = rawEmail.trim().toLowerCase();
-    const phoneNumber = (args.phoneNumber || currentUser?.phone || "").trim();
+    const phoneNumber = normalizeWhatsAppNumber(args.phoneNumber || currentUser?.phone || "");
     const countryCode = (args.countryCode || currentUser?.countryCode || "").trim().toUpperCase();
     const efootballId = (args.efootballId || currentUser?.efootballId || "").trim();
+    const konamiId = (args.konamiId || efootballId).trim();
     const valorantId = (args.valorantId || currentUser?.valorantId || "").trim();
 
     if (currentUser) {
@@ -240,9 +248,13 @@ export const quickRegister = mutation({
     if (!applicantName) throw new ConvexError("Please set up your player name or gamer tag in your profile.");
     if (!countryCode) throw new ConvexError("Please choose your country in your profile.");
     if (!applicantEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(applicantEmail)) throw new ConvexError("A valid email address is required.");
-    if (phoneNumber.replace(/\D/g, "").length < 7) throw new ConvexError("A valid contact phone number is required in your profile.");
-
     const selectedGame = tournament.gameId ?? "efootball";
+    if (selectedGame === "efootball" && (!konamiId || konamiId.length < 3 || konamiId.length > 40)) {
+      throw new ConvexError("Enter your Konami ID (3–40 characters).");
+    }
+    if (selectedGame === "efootball" && (!Number.isInteger(args.playerRating) || args.playerRating! < 0 || args.playerRating! > 5000)) {
+      throw new ConvexError("Enter your current eFootball rating between 0 and 5000.");
+    }
     if (tournament.maxSlots) {
       const participants = await ctx.db.query("participants").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.tournamentId)).take(tournament.maxSlots);
       if (participants.length >= tournament.maxSlots) throw new ConvexError("Registration is not available because this tournament is full.");
@@ -286,7 +298,9 @@ export const quickRegister = mutation({
       phoneNumber,
       countryCode,
       efootballId: efootballId || undefined,
+      konamiId: konamiId || undefined,
       valorantId: valorantId || undefined,
+      playerRating: args.playerRating,
       acceptedRules: true,
       captainName,
       gameId: selectedGame,
@@ -302,6 +316,7 @@ export const quickRegister = mutation({
       gameId: selectedGame,
       countryCode,
       efootballId: efootballId || undefined,
+      konamiId: konamiId || undefined,
       valorantId: valorantId || undefined,
       captain: captainName,
       roster,

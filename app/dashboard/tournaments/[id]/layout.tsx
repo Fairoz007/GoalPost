@@ -2,7 +2,8 @@
 
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 
 import { TournamentHeader } from "@/components/dashboard/tournament/tournament-header";
@@ -11,15 +12,17 @@ import { FAB } from "@/components/dashboard/tournament/fab";
 
 export default function TournamentLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
+  const router = useRouter();
   const tournamentId = params.id as Id<"tournaments">;
   
   const isInvalidId = !tournamentId || tournamentId === "undefined";
   const tournament = useQuery(api.tournaments.getOwnedById, isInvalidId ? "skip" : { id: tournamentId });
 
+  useEffect(() => {
+    if (isInvalidId) router.replace("/dashboard/tournaments");
+  }, [isInvalidId, router]);
+
   if (isInvalidId) {
-    if (typeof window !== 'undefined') {
-      window.location.href = "/dashboard/tournaments";
-    }
     return null;
   }
 

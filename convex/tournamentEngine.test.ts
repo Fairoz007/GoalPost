@@ -467,7 +467,10 @@ describe("game-aware tournament engine", () => {
     expect(updatedProfile?.valorantId).toBe("Striker#VAL");
 
     // 3. Instant 1-click registration without entering extra details
-    const registrationId = await player.mutation(api.arena.quickRegister, { tournamentId });
+    const registrationId = await player.mutation(api.arena.quickRegister, {
+      tournamentId,
+      playerRating: 1450,
+    });
     expect(registrationId).toBeDefined();
 
     const participants = await organizer.query(api.participants.getByTournament, { tournamentId });
@@ -477,7 +480,9 @@ describe("game-aware tournament engine", () => {
     expect(participants[0].efootballId).toBe("EF-998877");
 
     // Duplicate registration is rejected
-    await expect(player.mutation(api.arena.quickRegister, { tournamentId })).rejects.toThrow("already registered");
+    await expect(
+      player.mutation(api.arena.quickRegister, { tournamentId, playerRating: 1450 }),
+    ).rejects.toThrow("already registered");
   });
 
   test("manual match creation, batch creation, and deletion operate independently of auto generators", async () => {

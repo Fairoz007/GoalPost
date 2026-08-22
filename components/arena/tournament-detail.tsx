@@ -12,10 +12,8 @@ import {
   Check,
   ChevronRight,
   Clock3,
-  Flag,
   Radio,
   Shield,
-  Sparkles,
   Trophy,
   Users,
   X,
@@ -759,7 +757,7 @@ export function TournamentDetail({
                   Close & View Tournament
                 </Button>
               </div>
-            ) : profile?.profileCompleted && !showFullForm ? (
+            ) : profile?.profileCompleted && !showFullForm && game.id === "valorant" ? (
               <div className="space-y-5">
                 <p className="text-xs font-bold uppercase tracking-wider text-primary">
                   ⚡ 1-Click Fast Entry · Secured by Clerk
@@ -793,14 +791,14 @@ export function TournamentDetail({
                   <div className="rounded-xl border border-primary/20 bg-background/80 p-3 space-y-1.5">
                     <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                       <span className="flex items-center gap-1.5 text-primary">
-                        {game.id === "efootball" ? "⚽ eFootball User ID / Konami ID" : "🎯 VALORANT Riot ID & Tag"}
+                        🎯 VALORANT Riot ID &amp; Tag
                       </span>
                       <span className="text-[10px] text-muted-foreground">Optional</span>
                     </div>
                     <Input
                       value={gameIdInput}
                       onChange={(e) => setGameIdInput(e.target.value)}
-                      placeholder={game.id === "efootball" ? "e.g. 123-456-789 or Konami Name" : "e.g. Player#EUW"}
+                      placeholder="e.g. Player#EUW"
                       className="h-9 text-xs bg-card"
                     />
                     <p className="text-[10px] text-muted-foreground">Saves automatically to your profile for this and future events.</p>
@@ -857,6 +855,7 @@ export function TournamentDetail({
                 <form onSubmit={submitRegistration} className="mt-6 space-y-4">
                   <Input
                     name="name"
+                    defaultValue={profile?.gamerTag || profile?.name || ""}
                     placeholder={
                       game.id === "valorant" ? "Team name" : "Player name"
                     }
@@ -865,13 +864,17 @@ export function TournamentDetail({
                   <Input
                     name="email"
                     type="email"
+                    defaultValue={profile?.email || ""}
                     placeholder="Contact email"
+                    autoComplete="email"
                     required
                   />
                   <Input
                     name="phone"
                     type="tel"
-                    placeholder="Phone number"
+                    defaultValue={profile?.phone || ""}
+                    placeholder="WhatsApp number with country code, e.g. +968 9123 4567"
+                    autoComplete="tel"
                     required
                   />
                   <Select
@@ -903,6 +906,46 @@ export function TournamentDetail({
                       placeholder={game.id === "efootball" ? "eFootball ID / Konami Name (Optional)" : "VALORANT Riot ID & Tag (Optional)"}
                     />
                   </div>
+
+                  {game.id === "efootball" && (
+                    <div className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
+                      <p className="text-xs font-bold uppercase tracking-wider text-primary">
+                        Required eFootball verification
+                      </p>
+                      <div>
+                        <label htmlFor="konamiId" className="text-xs font-semibold text-foreground">
+                          Konami ID
+                        </label>
+                        <Input
+                          id="konamiId"
+                          name="konamiId"
+                          defaultValue={profile?.efootballId || ""}
+                          placeholder="Enter your genuine Konami ID"
+                          minLength={3}
+                          maxLength={40}
+                          className="mt-1.5"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="playerRating" className="text-xs font-semibold text-foreground">
+                          Current eFootball rating
+                        </label>
+                        <Input
+                          id="playerRating"
+                          name="playerRating"
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={5000}
+                          step={1}
+                          placeholder="For example, 1450"
+                          className="mt-1.5"
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {game.id === "valorant" && (
                     <div className="space-y-3 rounded-xl border border-border bg-background p-4">
@@ -1052,7 +1095,7 @@ function RegistrationSection({
             This tournament is not accepting registrations right now. You can still review fixtures, standings, and rules.
           </p>
         ) : isAuthenticated ? (
-          profile?.profileCompleted && onQuickRegister ? (
+          profile?.profileCompleted && onQuickRegister && game.id === "valorant" ? (
             <div className="mt-6 space-y-3">
               <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4 max-w-md">
                 <p className="text-xs font-bold uppercase text-primary flex items-center gap-1.5">
