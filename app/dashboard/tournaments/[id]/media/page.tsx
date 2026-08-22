@@ -75,11 +75,16 @@ export default function MediaPage() {
   const matches = useQuery(api.matches.getByTournament, { tournamentId }) as StreamMatch[] | undefined
   const participants = useQuery(api.participants.getByTournament, { tournamentId })
   const setYouTubeVideo = useMutation(api.matches.setYouTubeVideo)
+  const setTournamentYouTubeVideo = useMutation(api.tournaments.setYouTubeVideo)
   const [selectedMatchId, setSelectedMatchId] = useState<Id<'matches'> | null>(null)
   const [videoUrl, setVideoUrl] = useState('')
+  const [tournamentVideoUrl, setTournamentVideoUrl] = useState('')
   const [saving, setSaving] = useState(false)
+  const [savingTournament, setSavingTournament] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [tournamentMessage, setTournamentMessage] = useState('')
+  const [tournamentError, setTournamentError] = useState('')
 
   const participantNames = useMemo(
     () => new Map(participants?.map((participant) => [participant._id, participant.name]) ?? []),
@@ -103,6 +108,12 @@ export default function MediaPage() {
       setVideoUrl(initialMatch.youtubeVideoId ? `https://youtu.be/${initialMatch.youtubeVideoId}` : '')
     }
   }, [liveMatch, nextMatch, orderedMatches, primaryTodayMatch, selectedMatchId])
+
+  useEffect(() => {
+    setTournamentVideoUrl(
+      tournament?.youtubeVideoId ? `https://youtu.be/${tournament.youtubeVideoId}` : '',
+    )
+  }, [tournament?.youtubeVideoId])
 
   const matchName = (match: StreamMatch) => `${participantNames.get(match.player1Id) ?? 'TBD'} vs ${participantNames.get(match.player2Id) ?? 'TBD'}`
 
@@ -130,6 +141,29 @@ export default function MediaPage() {
     }
   }
 
+  const saveTournamentVideo = async (nextUrl = tournamentVideoUrl) => {
+    setSavingTournament(true)
+    setTournamentMessage('')
+    setTournamentError('')
+    try {
+      await setTournamentYouTubeVideo({
+        tournamentId,
+        videoUrl: nextUrl,
+        adminCode: getTournamentEditCode(tournamentId),
+      })
+      setTournamentVideoUrl(nextUrl)
+      setTournamentMessage(
+        nextUrl.trim()
+          ? 'Main tournament stream published on the public tournament page.'
+          : 'Main tournament stream removed.',
+      )
+    } catch (cause) {
+      setTournamentError(cause instanceof Error ? cause.message : 'Could not save the tournament stream URL.')
+    } finally {
+      setSavingTournament(false)
+    }
+  }
+
   if (tournament === undefined || matches === undefined || participants === undefined) return <StudioSkeleton />
   if (!tournament) return <div className="rounded-2xl border border-border bg-card py-24 text-center"><LockKeyhole className="mx-auto size-9 text-muted-foreground" /><p className="mt-4 font-semibold">Streamer access required</p><p className="mt-2 text-sm text-muted-foreground">Only the account that created this tournament can manage its streams.</p></div>
 
@@ -146,6 +180,38 @@ export default function MediaPage() {
           </div>
         </div>
         <div className="mt-8 flex items-center gap-2 border-t border-border pt-5 text-xs text-muted-foreground"><LockKeyhole className="size-3.5 text-emerald-400" /><span>Protected creator workspace</span><span className="text-border">•</span><span>Only you can add, edit, or remove tournament stream URLs.</span></div>
+      </div>
+    </section>
+
+    <section className="overflow-hidden rounded-3xl border border-border bg-card">
+      <div className="grid lg:grid-cols-[minmax(0,.85fr)_minmax(360px,1.15fr)]">
+        <div className="p-6 sm:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[.22em] text-primary">Tournament-wide channel</p>
+              <h2 className="mt-2 font-display text-2xl font-bold uppercase">Main live stream</h2>
+            </div>
+            {tournament.youtubeVideoId && <Badge className="bg-emerald-500/10 text-emerald-400"><Check />Public</Badge>}
+          </div>
+          <p className="mt-4 text-sm leading-6 text-muted-foreground">Use one YouTube broadcast for the whole tournament. It appears directly on the public tournament preview. Match URLs below remain optional overrides for individual fixtures.</p>
+          <div className="mt-6 space-y-2">
+            <Label htmlFor="tournament-youtube-url">YouTube stream URL</Label>
+            <div className="relative">
+              <Link2 className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input id="tournament-youtube-url" type="url" inputMode="url" value={tournamentVideoUrl} onChange={(event) => setTournamentVideoUrl(event.target.value)} placeholder="https://www.youtube.com/live/..." className="h-11 pl-10" />
+            </div>
+          </div>
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <Button size="lg" onClick={() => void saveTournamentVideo()} disabled={savingTournament || !tournamentVideoUrl.trim()} className="w-full sm:w-auto"><Save />{savingTournament ? 'Saving…' : tournament.youtubeVideoId ? 'Update main stream' : 'Publish main stream'}</Button>
+            {tournament.youtubeVideoId && <Button size="lg" variant="outline" disabled={savingTournament} onClick={() => void saveTournamentVideo('')} className="w-full sm:w-auto"><Trash2 />Remove</Button>}
+            <Button size="lg" variant="ghost" render={<Link href={tournament.slug ? `/tournament/${tournament.slug}` : `/tournaments/${tournamentId}`} target="_blank" />} className="w-full sm:w-auto"><ExternalLink />Public preview</Button>
+          </div>
+          {tournamentMessage && <p className="mt-4 flex items-start gap-2 text-sm text-emerald-400"><Check className="mt-0.5 size-4 shrink-0" />{tournamentMessage}</p>}
+          {tournamentError && <p className="mt-4 text-sm text-red-400">{tournamentError}</p>}
+        </div>
+        <div className="relative min-h-60 border-t border-border bg-black lg:border-l lg:border-t-0">
+          {tournament.youtubeVideoId ? <iframe className="aspect-video h-full min-h-60 w-full" src={`https://www.youtube-nocookie.com/embed/${tournament.youtubeVideoId}`} title={`${tournament.name} main tournament stream preview`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen /> : <div className="field-grid flex h-full min-h-60 items-center justify-center p-8 text-center"><div><Radio className="mx-auto size-8 text-primary" /><p className="mt-4 font-display text-xl font-bold uppercase">One stream, every round</p><p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Publish the tournament channel once, then replace its URL whenever the broadcast changes.</p></div></div>}
+        </div>
       </div>
     </section>
 

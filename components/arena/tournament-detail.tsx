@@ -178,6 +178,14 @@ export function TournamentDetail({
         applicantName: String(form.get("name")),
         applicantEmail: String(form.get("email")),
         phoneNumber: String(form.get("phone")),
+        konamiId:
+          game.id === "efootball"
+            ? String(form.get("konamiId"))
+            : undefined,
+        playerRating:
+          game.id === "efootball"
+            ? Number(form.get("playerRating"))
+            : undefined,
         countryCode: String(form.get("country") || "") || undefined,
         acceptedRules: true,
         captainName,
@@ -256,6 +264,34 @@ export function TournamentDetail({
           )}
         </div>
       </section>
+      {tournament.youtubeVideoId && (
+        <section className="border-b border-border bg-card/40">
+          <div className="mx-auto grid max-w-7xl gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-center lg:py-8">
+            <div>
+              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-primary">
+                <span className="live-pulse size-2 rounded-full bg-primary" />
+                Tournament broadcast
+              </p>
+              <h2 className="mt-3 font-display text-2xl font-bold uppercase sm:text-3xl">
+                Watch the tournament live
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                The organizer&apos;s main YouTube channel stays here throughout the tournament, including between individual fixtures.
+              </p>
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl shadow-black/30">
+              <iframe
+                className="aspect-video w-full"
+                src={`https://www.youtube-nocookie.com/embed/${tournament.youtubeVideoId}`}
+                title={`${tournament.name} tournament stream`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        </section>
+      )}
       <div className="sticky top-[72px] z-30 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 sm:px-6">
           {tabs.map((item) => (
@@ -517,8 +553,8 @@ export function TournamentDetail({
         )}
       </main>
       {registering && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4">
-          <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-card p-6">
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-4">
+          <div className="relative max-h-[94dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:max-h-[90vh] sm:rounded-2xl sm:p-6">
             <button
               onClick={() => setRegistering(false)}
               className="absolute right-4 top-4 text-muted-foreground"
@@ -569,6 +605,7 @@ export function TournamentDetail({
                 <form onSubmit={submitRegistration} className="mt-6 space-y-4">
                   <Input
                     name="name"
+                    autoComplete="name"
                     placeholder={
                       game.id === "valorant" ? "Team name" : "Player name"
                     }
@@ -577,15 +614,34 @@ export function TournamentDetail({
                   <Input
                     name="email"
                     type="email"
+                    autoComplete="email"
                     placeholder="Contact email"
                     required
                   />
-                  <Input
-                    name="phone"
-                    type="tel"
-                    placeholder="Phone number"
-                    required
-                  />
+                  <div className="space-y-2">
+                    <label htmlFor="registration-whatsapp" className="text-xs font-semibold text-foreground">WhatsApp number</label>
+                    <Input
+                      id="registration-whatsapp"
+                      name="phone"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      placeholder="+968 9123 4567"
+                      aria-describedby="whatsapp-help"
+                      required
+                    />
+                    <p id="whatsapp-help" className="text-xs leading-5 text-muted-foreground">Include the country code. The organizer will use this private number for tournament contact.</p>
+                  </div>
+                  {game.id === "efootball" && (
+                    <div className="grid gap-3 rounded-xl border border-border bg-background p-4 sm:grid-cols-2">
+                      <div className="space-y-2 sm:col-span-2">
+                        <p className="text-xs font-bold uppercase tracking-wider text-primary">eFootball player details</p>
+                        <p className="text-xs leading-5 text-muted-foreground">Use the Konami ID and current rating visible in your game account.</p>
+                      </div>
+                      <Input name="konamiId" autoComplete="off" minLength={3} maxLength={40} placeholder="Konami ID" required />
+                      <Input name="playerRating" type="number" inputMode="numeric" min={0} max={5000} step={1} placeholder="Current rating" required />
+                    </div>
+                  )}
                   <Select
                     name="country"
                     value={registerCountry}

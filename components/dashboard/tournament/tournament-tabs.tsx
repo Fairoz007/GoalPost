@@ -17,6 +17,7 @@ export function TournamentTabs({ tournamentId, format }: TournamentTabsProps) {
 
   const tabs = [
     { id: "overview", label: "Overview" },
+    { id: "registrations", label: "Registrations" },
     { id: "participants", label: "Participants" },
     { id: "groups", label: "Groups", hidden: !hasGroups },
     { id: "fixtures", label: "Fixtures" },

@@ -14,6 +14,7 @@ import type * as groups from "../groups.js";
 import type * as invitations from "../invitations.js";
 import type * as matches from "../matches.js";
 import type * as model_auth from "../model/auth.js";
+import type * as model_youtube from "../model/youtube.js";
 import type * as participants from "../participants.js";
 import type * as tournamentAuth from "../tournamentAuth.js";
 import type * as tournaments from "../tournaments.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   invitations: typeof invitations;
   matches: typeof matches;
   "model/auth": typeof model_auth;
+  "model/youtube": typeof model_youtube;
   participants: typeof participants;
   tournamentAuth: typeof tournamentAuth;
   tournaments: typeof tournaments;

@@ -5,6 +5,7 @@ import type { Doc } from "./_generated/dataModel";
 import { rulesFor, valorantModeRules } from "./gameModules";
 import { codesMatch, generateTournamentAdminCode, requireTournamentAdmin } from "./tournamentAuth";
 import { requireIdentity } from "./model/auth";
+import { parseYouTubeVideoId } from "./model/youtube";
 
 const publicTournament = (tournament: Doc<"tournaments">) => {
   const { adminCode, ownerToken, ...rest } = tournament;
@@ -128,6 +129,23 @@ export const update = mutation({
     }
     await ctx.db.patch(id, updates);
     return null;
+  },
+});
+
+export const setYouTubeVideo = mutation({
+  args: {
+    tournamentId: v.id("tournaments"),
+    videoUrl: v.string(),
+    adminCode: v.optional(v.string()),
+  },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => {
+    await requireTournamentAdmin(ctx, args.tournamentId, args.adminCode);
+    const youtubeVideoId = parseYouTubeVideoId(args.videoUrl);
+    await ctx.db.patch(args.tournamentId, {
+      youtubeVideoId: youtubeVideoId ?? undefined,
+    });
+    return youtubeVideoId;
   },
 });
 

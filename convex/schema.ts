@@ -42,6 +42,23 @@ export default defineSchema({
     name: v.optional(v.string()),
     email: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    gamerTag: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    countryCode: v.optional(v.string()),
+    discordTag: v.optional(v.string()),
+    captainName: v.optional(v.string()),
+    efootballId: v.optional(v.string()),
+    valorantId: v.optional(v.string()),
+    defaultRoster: v.optional(
+      v.array(
+        v.object({
+          displayName: v.string(),
+          role: v.union(v.literal("captain"), v.literal("player"), v.literal("coach"), v.literal("substitute")),
+          countryCode: v.optional(v.string()),
+        }),
+      ),
+    ),
+    profileCompleted: v.optional(v.boolean()),
     lastSeenAt: v.number(),
   })
     .index("by_tokenIdentifier", ["tokenIdentifier"])
@@ -71,6 +88,7 @@ export default defineSchema({
     currentStage: v.optional(v.string()),
     rules: v.optional(v.string()),
     featured: v.optional(v.boolean()),
+    youtubeVideoId: v.optional(v.string()),
     adminCode: v.optional(v.string()),
   })
     .index("by_ownerToken", ["ownerToken"])
@@ -99,6 +117,9 @@ export default defineSchema({
     countryCode: v.optional(v.string()),
     flag: v.optional(v.string()),
     captain: v.optional(v.string()),
+    efootballId: v.optional(v.string()),
+    konamiId: v.optional(v.string()),
+    valorantId: v.optional(v.string()),
     seed: v.optional(v.number()),
     checkedIn: v.optional(v.boolean()),
     registrationStatus: v.optional(
@@ -168,13 +189,20 @@ export default defineSchema({
     gameId,
     goals: v.optional(v.number()),
     possession: v.optional(v.number()),
+    possessionPercentage: v.optional(v.number()),
     shots: v.optional(v.number()),
+    shotsOnTarget: v.optional(v.number()),
+    passAccuracyPercentage: v.optional(v.number()),
+    fouls: v.optional(v.number()),
+    yellowCards: v.optional(v.number()),
+    redCards: v.optional(v.number()),
     cards: v.optional(v.number()),
     mapsWon: v.optional(v.number()),
     roundsWon: v.optional(v.number()),
     kills: v.optional(v.number()),
     deaths: v.optional(v.number()),
     assists: v.optional(v.number()),
+    assistsVal: v.optional(v.number()),
     acs: v.optional(v.number()),
   })
     .index("by_matchId", ["matchId"])
@@ -187,6 +215,10 @@ export default defineSchema({
     applicantName: v.string(),
     applicantEmail: v.string(),
     phoneNumber: v.optional(v.string()),
+    efootballId: v.optional(v.string()),
+    konamiId: v.optional(v.string()),
+    valorantId: v.optional(v.string()),
+    playerRating: v.optional(v.number()),
     teamId: v.optional(v.id("teams")),
     countryCode: v.optional(v.string()),
     gameId: v.optional(gameId),

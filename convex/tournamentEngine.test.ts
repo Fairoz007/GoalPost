@@ -44,6 +44,22 @@ describe("game-aware tournament engine", () => {
     const publicTournament = await t.query(api.tournaments.getById, { id: first.tournamentId });
     expect(publicTournament).not.toHaveProperty("adminCode");
     expect(publicTournament).not.toHaveProperty("ownerToken");
+    const legacyUserId = await t.run(async (ctx) => await ctx.db.insert("users", {
+      tokenIdentifier: "https://clerk.test|legacy-profile",
+      clerkUserId: "legacy-profile",
+      name: "Legacy Profile",
+      gamerTag: "Legacy Gamer",
+      phone: "9249049337",
+      countryCode: "IN",
+      captainName: "Legacy Captain",
+      discordTag: "legacy-user",
+      efootballId: "858-157-496",
+      valorantId: "legacy#001",
+      defaultRoster: [{ displayName: "Legacy Captain", role: "captain", countryCode: "IN" }],
+      profileCompleted: true,
+      lastSeenAt: Date.now(),
+    }));
+    expect(await t.run(async (ctx) => await ctx.db.get("users", legacyUserId))).toMatchObject({ profileCompleted: true, gamerTag: "Legacy Gamer", discordTag: "legacy-user" });
     const otherUser = base.withIdentity({ subject: "clerk-other", issuer: "https://clerk.test", tokenIdentifier: "https://clerk.test|clerk-other" });
     await expect(otherUser.mutation(api.tournaments.update, { id: first.tournamentId, name: "Hijacked" })).rejects.toThrow("permission");
     await expect(otherUser.mutation(api.participants.create, { tournamentId: first.tournamentId, name: "Injected Player", gameId: "efootball" })).rejects.toThrow("permission");
@@ -67,6 +83,8 @@ describe("game-aware tournament engine", () => {
       applicantName: "Private Applicant",
       applicantEmail: "private@example.com",
       phoneNumber: "+968 9000 0000",
+      konamiId: "private-player",
+      playerRating: 1850,
       countryCode: "OM",
       acceptedRules: true,
     });
@@ -223,7 +241,7 @@ describe("game-aware tournament engine", () => {
     const roster = valorantRoster("Public");
     const registrationId = await t.mutation(api.arena.register, { tournamentId, applicantName: "Public Five", applicantEmail: "captain@example.com", phoneNumber: "+91 98765 43210", countryCode: "IN", captainName: "Public Captain", acceptedRules: true, roster });
     const registrations = await t.query(api.arena.listRegistrations, { tournamentId, adminCode: editCodeFor(tournamentId) });
-    expect(registrations[0]).toMatchObject({ _id: registrationId, status: "approved", applicantEmail: "captain@example.com", phoneNumber: "+91 98765 43210", countryCode: "IN" });
+    expect(registrations[0]).toMatchObject({ _id: registrationId, status: "approved", applicantEmail: "captain@example.com", phoneNumber: "+919876543210", countryCode: "IN" });
     expect(registrations[0].participantId).toBeTruthy();
     expect(registrations[0].roster).toHaveLength(5);
     const participants = await t.query(api.participants.getByTournament, { tournamentId });
@@ -239,6 +257,8 @@ describe("game-aware tournament engine", () => {
       applicantName: "Public Player",
       applicantEmail: "PLAYER@example.com",
       phoneNumber: "+968 9123 4567",
+      konamiId: "public-player-01",
+      playerRating: 1924,
       countryCode: "OM",
       acceptedRules: true,
     });
@@ -247,7 +267,9 @@ describe("game-aware tournament engine", () => {
       _id: registrationId,
       applicantName: "Public Player",
       applicantEmail: "player@example.com",
-      phoneNumber: "+968 9123 4567",
+      phoneNumber: "+96891234567",
+      konamiId: "public-player-01",
+      playerRating: 1924,
       gameId: "efootball",
       competitorKind: "player",
       countryCode: "OM",
@@ -256,6 +278,37 @@ describe("game-aware tournament engine", () => {
     expect(registration.roster).toEqual([]);
     const [participant] = await t.query(api.participants.getByTournament, { tournamentId });
     expect(participant).toMatchObject({ name: "Public Player", countryCode: "OM", registrationStatus: "approved" });
+
+    const legacyRegistrationId = await t.run(async (ctx) => await ctx.db.insert("registrations", {
+      tournamentId,
+      applicantName: "Legacy Player",
+      applicantEmail: "legacy@example.com",
+      phoneNumber: "9249049337",
+      efootballId: "858-157-496",
+      valorantId: "legacy-player#001",
+      gameId: "efootball",
+      competitorKind: "player",
+      acceptedRules: true,
+      status: "approved",
+      createdAt: Date.now(),
+    }));
+    const withLegacyRegistration = await t.query(api.arena.listRegistrations, { tournamentId });
+    expect(withLegacyRegistration.find((entry) => entry._id === legacyRegistrationId)).toMatchObject({
+      efootballId: "858-157-496",
+      valorantId: "legacy-player#001",
+      phoneNumber: "9249049337",
+    });
+
+    await expect(t.mutation(api.arena.register, {
+      tournamentId,
+      applicantName: "Fake Contact",
+      applicantEmail: "fake@example.com",
+      phoneNumber: "12345678",
+      konamiId: "fake-player",
+      playerRating: 1000,
+      countryCode: "OM",
+      acceptedRules: true,
+    })).rejects.toThrow("WhatsApp");
   });
 
   test("registration can be marked unavailable", async () => {
@@ -311,6 +364,12 @@ describe("game-aware tournament engine", () => {
     expect(rankings).toHaveLength(2);
     expect(rankings.every((ranking) => ranking.rating === 1000 && ranking.wins === 0 && ranking.losses === 0)).toBe(true);
 
+    await t.mutation(api.tournaments.setYouTubeVideo, {
+      tournamentId,
+      videoUrl: "https://www.youtube.com/live/dQw4w9WgXcQ",
+    });
+    expect(await t.query(api.tournaments.getById, { id: tournamentId })).toMatchObject({ youtubeVideoId: "dQw4w9WgXcQ" });
+
     await t.mutation(api.matches.generateTournament, { tournamentId, adminCode: editCodeFor(tournamentId) });
     const [match] = await t.query(api.matches.getByTournament, { tournamentId });
     await t.mutation(api.matches.setYouTubeVideo, {
@@ -322,6 +381,10 @@ describe("game-aware tournament engine", () => {
     const outsider = base.withIdentity({ subject: "clerk-stream-outsider", issuer: "https://clerk.test", tokenIdentifier: "https://clerk.test|clerk-stream-outsider" });
     await expect(outsider.mutation(api.matches.setYouTubeVideo, {
       matchId: match._id,
+      videoUrl: "https://youtu.be/9bZkp7q19f0",
+    })).rejects.toThrow("permission");
+    await expect(outsider.mutation(api.tournaments.setYouTubeVideo, {
+      tournamentId,
       videoUrl: "https://youtu.be/9bZkp7q19f0",
     })).rejects.toThrow("permission");
     await expect(t.mutation(api.matches.setYouTubeVideo, {

@@ -93,6 +93,7 @@ export const getPlayer = query({
 export const register = mutation({
   args: {
     tournamentId: v.id("tournaments"), applicantName: v.string(), applicantEmail: v.string(), phoneNumber: v.string(),
+    efootballId: v.optional(v.string()), konamiId: v.optional(v.string()), valorantId: v.optional(v.string()), playerRating: v.optional(v.number()),
     teamId: v.optional(v.id("teams")), countryCode: v.optional(v.string()), acceptedRules: v.boolean(),
     captainName: v.optional(v.string()),
     roster: v.optional(v.array(v.object({
@@ -108,12 +109,26 @@ export const register = mutation({
     if (!args.acceptedRules) throw new ConvexError("You must accept the tournament rules.");
     const applicantName = args.applicantName.trim();
     const applicantEmail = args.applicantEmail.trim().toLowerCase();
-    const phoneNumber = args.phoneNumber.trim();
+    const phoneNumber = args.phoneNumber.replace(/[\s()-]/g, "");
     if (!applicantName) throw new ConvexError("Your name is required.");
     if (!args.countryCode?.trim()) throw new ConvexError("Choose your country.");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(applicantEmail)) throw new ConvexError("Enter a valid email address.");
-    if (phoneNumber.replace(/\D/g, "").length < 7) throw new ConvexError("Enter a valid phone number.");
+    if (!/^\+[1-9]\d{7,14}$/.test(phoneNumber)) {
+      throw new ConvexError("Enter a valid WhatsApp number with country code, for example +968 9123 4567.");
+    }
+    const phoneDigits = phoneNumber.slice(1);
+    if (/^(\d)\1+$/.test(phoneDigits) || "01234567890123456789".includes(phoneDigits)) {
+      throw new ConvexError("Enter a genuine WhatsApp contact number.");
+    }
     const selectedGame = tournament.gameId ?? "efootball";
+    const legacyEfootballId = args.efootballId?.trim();
+    const konamiId = args.konamiId?.trim() || legacyEfootballId;
+    if (selectedGame === "efootball" && (!konamiId || konamiId.length < 3 || konamiId.length > 40)) {
+      throw new ConvexError("Enter your Konami ID (3–40 characters).");
+    }
+    if (selectedGame === "efootball" && (!Number.isInteger(args.playerRating) || args.playerRating! < 0 || args.playerRating! > 5000)) {
+      throw new ConvexError("Enter your current eFootball rating between 0 and 5000.");
+    }
     if (tournament.maxSlots) {
       const participants = await ctx.db.query("participants").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.tournamentId)).take(tournament.maxSlots);
       if (participants.length >= tournament.maxSlots) throw new ConvexError("Registration is not available because this tournament is full.");
@@ -145,6 +160,10 @@ export const register = mutation({
       applicantName,
       applicantEmail,
       phoneNumber,
+      efootballId: legacyEfootballId,
+      konamiId,
+      valorantId: args.valorantId?.trim(),
+      playerRating: args.playerRating,
       teamId: args.teamId,
       countryCode: args.countryCode,
       acceptedRules: args.acceptedRules,
