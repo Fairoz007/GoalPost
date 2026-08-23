@@ -97,10 +97,10 @@ export function TournamentDetail({
     api.arena.listAnnouncements,
     tournamentId ? { tournamentId } : "skip",
   );
-  const profile = useQuery(api.users.getProfile);
+  const { isAuthenticated } = useConvexAuth();
+  const profile = useQuery(api.users.getProfile, isAuthenticated ? {} : "skip");
   const register = useMutation(api.arena.register);
   const quickRegister = useMutation(api.arena.quickRegister);
-  const { isAuthenticated } = useConvexAuth();
   const userRegistration = useQuery(
     api.arena.getRegistrationStatus,
     tournamentId && isAuthenticated ? { tournamentId } : "skip",
