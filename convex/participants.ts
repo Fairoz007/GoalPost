@@ -5,6 +5,9 @@ import { rulesFor, type GameModuleId } from "./gameModules";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireTournamentAdmin } from "./tournamentAuth";
 import { requireIdentity } from "./model/auth";
+import { requireVisibleTournament } from "./model/tournamentAccess";
+import { adjustPlatformStats } from "./model/platformStats";
+import { cleanRequired } from "./model/validation";
 
 const rosterMember = v.object({
   displayName: v.string(),
@@ -121,7 +124,7 @@ export async function insertCompetitor(ctx: MutationCtx, args: CompetitorInput) 
 
   const participantId = await ctx.db.insert("participants", {
     userId: args.userId,
-    name: args.name,
+    name: cleanRequired(args.name, "Competitor name", 100),
     tournamentId: args.tournamentId,
     slug: args.slug,
     gameId: selectedGame,
@@ -141,7 +144,8 @@ export async function insertCompetitor(ctx: MutationCtx, args: CompetitorInput) 
     checkedIn: false,
   });
   const participant = await ctx.db.get("participants", participantId);
-  if (participant) await ensureProvisionalRanking(ctx, participant, selectedGame);
+  if (participant && tournament.status !== "Draft") await ensureProvisionalRanking(ctx, participant, selectedGame);
+  await adjustPlatformStats(ctx, { registeredCompetitors: 1 });
   return participantId;
 }
 
@@ -166,6 +170,7 @@ export const getByTournament = query({
   args: { tournamentId: v.id("tournaments") },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
+    if (!(await requireVisibleTournament(ctx, args.tournamentId))) return [];
     const participants = await ctx.db.query("participants").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.tournamentId)).take(128);
     return await Promise.all(participants.map(async (participant) => {
       const { userId: _userId, ...publicParticipant } = participant;
@@ -186,7 +191,10 @@ export const getAllUnique = query({
   returns: v.array(v.any()),
   handler: async (ctx) => {
     const rows = await ctx.db.query("participants").take(500);
-    const unique = [...new Map(rows.map((participant) => [`${participant.gameId ?? "efootball"}:${participant.name.toLowerCase()}`, participant])).values()];
+    const tournamentIds = [...new Set(rows.map((participant) => participant.tournamentId))];
+    const tournaments = await Promise.all(tournamentIds.map((id) => ctx.db.get("tournaments", id)));
+    const visibleIds = new Set(tournaments.filter((tournament) => tournament?.status !== "Draft").map((tournament) => tournament!._id));
+    const unique = [...new Map(rows.filter((participant) => visibleIds.has(participant.tournamentId)).map((participant) => [`${participant.gameId ?? "efootball"}:${participant.name.toLowerCase()}`, participant])).values()];
     return await Promise.all(unique.map(async (participant) => {
       const { userId: _userId, ...publicParticipant } = participant;
       return {
@@ -224,5 +232,21 @@ export const setCheckIn = mutation({
 export const remove = mutation({
   args: { id: v.id("participants"), adminCode: v.optional(v.string()) },
   returns: v.null(),
-  handler: async (ctx, args) => { const participant = await ctx.db.get("participants", args.id); if (!participant) throw new ConvexError("Participant not found."); await requireTournamentAdmin(ctx, participant.tournamentId, args.adminCode); await ctx.db.delete(args.id); return null; },
+  handler: async (ctx, args) => {
+    const participant = await ctx.db.get("participants", args.id);
+    if (!participant) throw new ConvexError("Participant not found.");
+    await requireTournamentAdmin(ctx, participant.tournamentId, args.adminCode);
+    const [asFirst, asSecond, registration] = await Promise.all([
+      ctx.db.query("matches").withIndex("by_player1Id", (q) => q.eq("player1Id", args.id)).take(1),
+      ctx.db.query("matches").withIndex("by_player2Id", (q) => q.eq("player2Id", args.id)).take(1),
+      ctx.db.query("registrations").withIndex("by_tournamentId", (q) => q.eq("tournamentId", participant.tournamentId)).take(200),
+    ]);
+    if (registration.length === 200) throw new ConvexError("This tournament requires assisted participant removal.");
+    if (asFirst.length || asSecond.length || registration.some((row) => row.participantId === args.id)) {
+      throw new ConvexError("This competitor is referenced by fixtures or a registration and cannot be deleted.");
+    }
+    await ctx.db.delete(args.id);
+    await adjustPlatformStats(ctx, { registeredCompetitors: -1 });
+    return null;
+  },
 });

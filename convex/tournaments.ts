@@ -2,21 +2,21 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { gameId, tournamentFormat, tournamentStatus, valorantMatchMode } from "./schema";
 import type { Doc } from "./_generated/dataModel";
+import type { QueryCtx } from "./_generated/server";
 import { rulesFor, valorantModeRules } from "./gameModules";
 import { codesMatch, generateTournamentAdminCode, requireTournamentAdmin } from "./tournamentAuth";
 import { requireIdentity } from "./model/auth";
 import { parseYouTubeVideoId } from "./model/youtube";
+import { isPlatformAdmin, requirePlatformAdmin } from "./model/platformAuth";
+import { adjustPlatformStats } from "./model/platformStats";
+import { cleanOptional, cleanRequired, validIsoDate, validateBestOf, validateSlots, validateTimeZone, validateWhatsAppInvite } from "./model/validation";
+import { canManageTournament } from "./model/tournamentAccess";
 
-const DEFAULT_WHATSAPP_URL = "https://chat.whatsapp.com/DcM0VixkixZ5QBYIXS6TW6?s=cl&p=a&mlu";
 const DEFAULT_REGISTRATION_INSTRUCTIONS = "Your place is confirmed automatically after registration. Please join the WhatsApp group for check-in, fixtures, results, and announcements.";
 
-const publicTournament = (tournament: Doc<"tournaments">) => {
+const publicTournament = (tournament: Doc<"tournaments">, exposeRegistrationGroup = false) => {
   const { adminCode, ownerToken, ...rest } = tournament;
-  const rawUrl = rest.registrationGroupUrl?.trim() ?? "";
-  const registrationGroupUrl =
-    rawUrl && !rawUrl.toLowerCase().includes("discord") && rawUrl.startsWith("http")
-      ? rawUrl
-      : DEFAULT_WHATSAPP_URL;
+  const registrationGroupUrl = exposeRegistrationGroup ? rest.registrationGroupUrl : undefined;
 
   let registrationInstructions = rest.registrationInstructions;
   if (registrationInstructions && registrationInstructions.toLowerCase().includes("discord")) {
@@ -52,6 +52,17 @@ function defaultTournamentRules(format: Doc<"tournaments">["format"]) {
   ].join("\n\n");
 }
 
+async function canViewRegistrationGroup(ctx: QueryCtx, tournament: Doc<"tournaments">) {
+  if (await canManageTournament(ctx, tournament)) return true;
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) return false;
+  const registration = await ctx.db
+    .query("registrations")
+    .withIndex("by_ownerToken_and_tournamentId", (q) => q.eq("ownerToken", identity.tokenIdentifier).eq("tournamentId", tournament._id))
+    .first();
+  return Boolean(registration && registration.status !== "rejected");
+}
+
 export const create = mutation({
   args: {
     name: v.string(),
@@ -62,6 +73,7 @@ export const create = mutation({
     startDate: v.string(),
     endDate: v.optional(v.string()),
     registrationClosesAt: v.optional(v.string()),
+    timezone: v.optional(v.string()),
     format: tournamentFormat,
     status: tournamentStatus,
     organizer: v.optional(v.string()),
@@ -80,10 +92,24 @@ export const create = mutation({
   returns: v.object({ tournamentId: v.id("tournaments") }),
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx);
-    if (args.slug) {
-      const existing = await ctx.db.query("tournaments").withIndex("by_slug", (q) => q.eq("slug", args.slug)).unique();
+    const name = cleanRequired(args.name, "Tournament name", 100);
+    const slug = cleanOptional(args.slug, "Tournament URL", 80)?.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const organizer = cleanOptional(args.organizer, "Organizer", 100);
+    const startDate = validIsoDate(args.startDate, "Start date");
+    const endDate = validIsoDate(args.endDate, "End date");
+    const registrationClosesAt = validIsoDate(args.registrationClosesAt, "Registration close date");
+    const timezone = validateTimeZone(args.timezone);
+    if (!startDate) throw new Error("Start date is required.");
+    if (endDate && Date.parse(endDate) < Date.parse(startDate)) throw new Error("End date cannot be before the start date.");
+    if (registrationClosesAt && Date.parse(registrationClosesAt) > Date.parse(startDate)) throw new Error("Registration must close on or before the tournament starts.");
+    validateSlots(args.maxSlots);
+    validateBestOf(args.bestOf);
+    const registrationGroupUrl = validateWhatsAppInvite(args.registrationGroupUrl);
+    if (slug) {
+      const existing = await ctx.db.query("tournaments").withIndex("by_slug", (q) => q.eq("slug", slug)).unique();
       if (existing) throw new Error("A tournament with this URL already exists.");
     }
+    if (args.featured) await requirePlatformAdmin(ctx);
     const selectedGame = args.gameId ?? "efootball";
     const gameRules = rulesFor(selectedGame);
     if (!gameRules.formats.includes(args.format)) throw new Error(`${args.format} is not supported for ${gameRules.name}.`);
@@ -91,16 +117,24 @@ export const create = mutation({
     const matchMode = selectedGame === "valorant" ? args.matchMode ?? "scrimmage" : undefined;
     const tournamentId = await ctx.db.insert("tournaments", {
       ...args,
+      name,
+      slug,
+      organizer,
+      startDate,
+      endDate,
+      registrationClosesAt,
+      timezone,
       ownerToken: identity.tokenIdentifier,
       gameId: selectedGame,
       matchMode,
-      registrationGroupUrl: args.registrationGroupUrl ?? DEFAULT_WHATSAPP_URL,
+      registrationGroupUrl,
       registrationInstructions: args.registrationInstructions ?? DEFAULT_REGISTRATION_INSTRUCTIONS,
       rules: args.rules ?? (matchMode ? valorantModeRules(matchMode).rules : defaultTournamentRules(args.format)),
       registrationEnabled: args.registrationEnabled ?? true,
       teamSize: gameRules.teamSize,
       bestOf: args.bestOf ?? gameRules.defaultBestOf,
     });
+    if (args.status === "Ongoing" || args.status === "Registration Open") await adjustPlatformStats(ctx, { activeTournaments: 1 });
     return { tournamentId };
   },
 });
@@ -119,6 +153,7 @@ export const update = mutation({
     startDate: v.optional(v.string()),
     endDate: v.optional(v.string()),
     registrationClosesAt: v.optional(v.string()),
+    timezone: v.optional(v.string()),
     currentStage: v.optional(v.string()),
     rules: v.optional(v.string()),
     prizePool: v.optional(v.string()),
@@ -142,15 +177,37 @@ export const update = mutation({
     }
     if (args.format && !gameRules.formats.includes(args.format)) throw new Error(`${args.format} is not supported for ${gameRules.name}.`);
     if (selectedGame === "efootball" && args.matchMode) throw new Error("VALORANT match modes cannot be used for eFootball tournaments.");
-    if (args.maxSlots !== undefined && (!Number.isInteger(args.maxSlots) || args.maxSlots < 2 || args.maxSlots > 128)) throw new Error("Maximum slots must be a whole number between 2 and 128.");
-    if (args.bestOf !== undefined && (![1, 3, 5].includes(args.bestOf))) throw new Error("Series length must be best-of-1, best-of-3, or best-of-5.");
+    validateSlots(args.maxSlots);
+    validateBestOf(args.bestOf);
+    if (args.featured !== undefined && args.featured !== tournament.featured) await requirePlatformAdmin(ctx);
+    if (args.status === "Completed" && tournament.status !== "Completed") {
+      const champion = await ctx.db.query("champions").withIndex("by_tournamentId", (q) => q.eq("tournamentId", id)).unique();
+      if (!champion) throw new Error("A tournament can only be completed after a champion is recorded.");
+    }
+    const startDate = validIsoDate(args.startDate, "Start date");
+    const endDate = validIsoDate(args.endDate, "End date");
+    const registrationClosesAt = validIsoDate(args.registrationClosesAt, "Registration close date");
+    const timezone = args.timezone === undefined ? undefined : validateTimeZone(args.timezone);
+    const effectiveStart = startDate ?? tournament.startDate;
+    if (endDate && Date.parse(endDate) < Date.parse(effectiveStart)) throw new Error("End date cannot be before the start date.");
+    if (registrationClosesAt && Date.parse(registrationClosesAt) > Date.parse(effectiveStart)) throw new Error("Registration must close on or before the tournament starts.");
+    const registrationGroupUrl = args.registrationGroupUrl === undefined ? undefined : validateWhatsAppInvite(args.registrationGroupUrl);
     const changesStructure = (args.format !== undefined && args.format !== tournament.format)
       || (args.matchMode !== undefined && args.matchMode !== tournament.matchMode);
     if (changesStructure) {
       const existingMatches = await ctx.db.query("matches").withIndex("by_tournamentId", (q) => q.eq("tournamentId", id)).take(1);
       if (existingMatches.length) throw new Error("Tournament format and match mode cannot be changed after fixtures are generated.");
     }
-    await ctx.db.patch(id, updates);
+    const wasActive = tournament.status === "Ongoing" || tournament.status === "Registration Open";
+    const willBeActive = (args.status ?? tournament.status) === "Ongoing" || (args.status ?? tournament.status) === "Registration Open";
+    const safeUpdates = { ...updates };
+    if (args.startDate !== undefined) safeUpdates.startDate = startDate;
+    if (args.endDate !== undefined) safeUpdates.endDate = endDate;
+    if (args.registrationClosesAt !== undefined) safeUpdates.registrationClosesAt = registrationClosesAt;
+    if (args.registrationGroupUrl !== undefined) safeUpdates.registrationGroupUrl = registrationGroupUrl;
+    if (args.timezone !== undefined) safeUpdates.timezone = timezone;
+    await ctx.db.patch(id, safeUpdates);
+    if (wasActive !== willBeActive) await adjustPlatformStats(ctx, { activeTournaments: willBeActive ? 1 : -1 });
     return null;
   },
 });
@@ -176,8 +233,19 @@ export const remove = mutation({
   args: { id: v.id("tournaments"), adminCode: v.optional(v.string()) },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await requireTournamentAdmin(ctx, args.id, args.adminCode);
+    const tournament = await requireTournamentAdmin(ctx, args.id, args.adminCode);
+    const dependencies = await Promise.all([
+      ctx.db.query("participants").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.id)).take(1),
+      ctx.db.query("groups").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.id)).take(1),
+      ctx.db.query("matches").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.id)).take(1),
+      ctx.db.query("registrations").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.id)).take(1),
+      ctx.db.query("announcements").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.id)).take(1),
+      ctx.db.query("tournamentInvites").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.id)).take(1),
+      ctx.db.query("champions").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.id)).take(1),
+    ]);
+    if (dependencies.some((rows) => rows.length)) throw new Error("This tournament contains related data and cannot be deleted. Cancel it or remove its data safely first.");
     await ctx.db.delete(args.id);
+    if (tournament.status === "Ongoing" || tournament.status === "Registration Open") await adjustPlatformStats(ctx, { activeTournaments: -1 });
     return null;
   },
 });
@@ -186,8 +254,9 @@ export const get = query({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx) => {
-    const tournaments = await ctx.db.query("tournaments").order("desc").take(100);
-    return tournaments.filter((tournament) => tournament.status !== "Draft").map(publicTournament);
+    const statuses = ["Upcoming", "Registration Open", "Ongoing", "Completed", "Cancelled"] as const;
+    const groups = await Promise.all(statuses.map((status) => ctx.db.query("tournaments").withIndex("by_status", (q) => q.eq("status", status)).order("desc").take(100)));
+    return groups.flat().sort((a, b) => b._creationTime - a._creationTime).slice(0, 100).map((tournament) => publicTournament(tournament));
   },
 });
 
@@ -196,12 +265,16 @@ export const getMine = query({
   returns: v.array(v.any()),
   handler: async (ctx) => {
     const identity = await requireIdentity(ctx);
+    if (await isPlatformAdmin(ctx)) {
+      const tournaments = await ctx.db.query("tournaments").order("desc").take(100);
+      return tournaments.map((tournament) => publicTournament(tournament, true));
+    }
     const tournaments = await ctx.db
       .query("tournaments")
       .withIndex("by_ownerToken", (q) => q.eq("ownerToken", identity.tokenIdentifier))
       .order("desc")
       .take(100);
-    return tournaments.map(publicTournament);
+    return tournaments.map((tournament) => publicTournament(tournament, true));
   },
 });
 
@@ -211,8 +284,8 @@ export const getOwnedById = query({
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx);
     const tournament = await ctx.db.get("tournaments", args.id);
-    if (!tournament || tournament.ownerToken !== identity.tokenIdentifier) return null;
-    return publicTournament(tournament);
+    if (!tournament || (tournament.ownerToken !== identity.tokenIdentifier && !(await canManageTournament(ctx, tournament)))) return null;
+    return publicTournament(tournament, true);
   },
 });
 
@@ -239,10 +312,9 @@ export const getById = query({
   handler: async (ctx, args) => {
     const tournament = await ctx.db.get("tournaments", args.id);
     if (tournament?.status === "Draft") {
-      const identity = await ctx.auth.getUserIdentity();
-      if (!identity || tournament.ownerToken !== identity.tokenIdentifier) return null;
+      if (!(await canManageTournament(ctx, tournament))) return null;
     }
-    return tournament ? publicTournament(tournament) : null;
+    return tournament ? publicTournament(tournament, await canViewRegistrationGroup(ctx, tournament)) : null;
   },
 });
 
@@ -252,10 +324,9 @@ export const getBySlug = query({
   handler: async (ctx, args) => {
     const tournament = await ctx.db.query("tournaments").withIndex("by_slug", (q) => q.eq("slug", args.slug)).unique();
     if (tournament?.status === "Draft") {
-      const identity = await ctx.auth.getUserIdentity();
-      if (!identity || tournament.ownerToken !== identity.tokenIdentifier) return null;
+      if (!(await canManageTournament(ctx, tournament))) return null;
     }
-    return tournament ? publicTournament(tournament) : null;
+    return tournament ? publicTournament(tournament, await canViewRegistrationGroup(ctx, tournament)) : null;
   },
 });
 
@@ -266,15 +337,16 @@ export const getDiscovery = query({
     stats: v.object({ activeTournaments: v.number(), registeredCompetitors: v.number(), completedMatches: v.number(), games: v.number() }),
   }),
   handler: async (ctx) => {
-    const tournaments = await ctx.db.query("tournaments").order("desc").take(100);
-    const competitors = await ctx.db.query("participants").take(500);
-    const completed = await ctx.db.query("matches").withIndex("by_tournamentId_and_status").take(500);
+    const statuses = ["Upcoming", "Registration Open", "Ongoing", "Completed", "Cancelled"] as const;
+    const grouped = await Promise.all(statuses.map((status) => ctx.db.query("tournaments").withIndex("by_status", (q) => q.eq("status", status)).order("desc").take(100)));
+    const tournaments = grouped.flat().sort((a, b) => b._creationTime - a._creationTime).slice(0, 100);
+    const stats = await ctx.db.query("platformStats").withIndex("by_key", (q) => q.eq("key", "global")).unique();
     return {
-      tournaments: tournaments.filter((tournament) => tournament.status !== "Draft").map(publicTournament),
+      tournaments: tournaments.map((tournament) => publicTournament(tournament)),
       stats: {
-        activeTournaments: tournaments.filter((t) => t.status === "Ongoing" || t.status === "Registration Open").length,
-        registeredCompetitors: competitors.length,
-        completedMatches: completed.filter((m) => m.status === "Completed").length,
+        activeTournaments: stats?.activeTournaments ?? tournaments.filter((t) => t.status === "Ongoing" || t.status === "Registration Open").length,
+        registeredCompetitors: stats?.registeredCompetitors ?? 0,
+        completedMatches: stats?.completedMatches ?? 0,
         games: 2,
       },
     };

@@ -31,9 +31,9 @@ export function AuthShell({
             <p className="text-xs font-bold uppercase tracking-[.28em] text-primary">
               {signingIn ? "Welcome back" : "Your arena awaits"}
             </p>
-            <h1 className="mt-4 font-display text-6xl font-bold uppercase leading-[.9] tracking-tight xl:text-7xl">
+            <p className="mt-4 font-display text-6xl font-bold uppercase leading-[.9] tracking-tight xl:text-7xl">
               {signingIn ? "Return to the competition." : "Build your competitive legacy."}
-            </h1>
+            </p>
             <p className="mt-6 max-w-lg text-base leading-7 text-white/55">
               One secure identity for tournaments, registrations, match history, and every achievement you earn in D-One Arena.
             </p>
@@ -75,9 +75,9 @@ export function AuthShell({
               <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10">
                 <Sparkles className="size-5 text-primary" aria-hidden="true" />
               </div>
-              <h1 className="mt-5 font-display text-4xl font-bold uppercase">
+              <p className="mt-5 font-display text-4xl font-bold uppercase">
                 {signingIn ? "Welcome back" : "Join the Arena"}
-              </h1>
+              </p>
               <p className="mt-2 text-sm leading-6 text-white/50">
                 {signingIn ? "Sign in to continue your competitive journey." : "Create one secure account for every competition."}
               </p>
@@ -99,8 +99,8 @@ export function AuthShell({
             </div>
           </div>
 
-          <p className="text-center text-xs leading-5 text-white/30">
-            By continuing, you agree to fair play, secure account use, and the tournament rules you join.
+          <p className="text-center text-xs leading-5 text-white/40">
+            By continuing, you agree to our <Link href="/terms" className="underline hover:text-white">Terms</Link> and acknowledge our <Link href="/privacy" className="underline hover:text-white">Privacy Policy</Link>.
           </p>
         </section>
       </div>

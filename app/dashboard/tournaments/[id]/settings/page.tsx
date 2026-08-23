@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { cloneElement, isValidElement, type ReactElement, useEffect, useId, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -46,6 +46,7 @@ export default function SettingsPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [registrationClosesAt, setRegistrationClosesAt] = useState("");
+  const [timezone, setTimezone] = useState("Asia/Muscat");
   const [prizePool, setPrizePool] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
   const [rules, setRules] = useState("");
@@ -71,6 +72,7 @@ export default function SettingsPage() {
     setStartDate(toLocalDateTime(tournament.startDate));
     setEndDate(toLocalDateTime(tournament.endDate));
     setRegistrationClosesAt(toLocalDateTime(tournament.registrationClosesAt));
+    setTimezone(tournament.timezone ?? "Asia/Muscat");
     setPrizePool(tournament.prizePool ?? "");
     setBannerUrl(tournament.bannerUrl ?? "");
     setRules(tournament.rules ?? "");
@@ -112,8 +114,9 @@ export default function SettingsPage() {
         bestOf,
         maxSlots,
         startDate: new Date(startDate).toISOString(),
-        endDate: endDate ? new Date(endDate).toISOString() : "",
-        registrationClosesAt: registrationClosesAt ? new Date(registrationClosesAt).toISOString() : "",
+        endDate: endDate ? new Date(endDate).toISOString() : undefined,
+        registrationClosesAt: registrationClosesAt ? new Date(registrationClosesAt).toISOString() : undefined,
+        timezone,
         prizePool,
         bannerUrl,
         rules,
@@ -132,8 +135,13 @@ export default function SettingsPage() {
 
   const handleDelete = async () => {
     if (!confirm("Permanently delete this tournament? This cannot be undone.")) return;
-    await removeTournament({ id: tournamentId, adminCode: getTournamentEditCode(tournamentId) });
-    router.push("/dashboard/tournaments");
+    setError("");
+    try {
+      await removeTournament({ id: tournamentId, adminCode: getTournamentEditCode(tournamentId) });
+      router.push("/dashboard/tournaments");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not delete the tournament.");
+    }
   };
 
   return <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-4xl space-y-8">
@@ -157,6 +165,7 @@ export default function SettingsPage() {
       <SettingsSection title="Schedule" description="Update the tournament and registration window.">
         <div className="grid gap-5 sm:grid-cols-2"><Field label="Starts"><Input type="datetime-local" value={startDate} onChange={(event) => setStartDate(event.target.value)} required /></Field><Field label="Ends"><Input type="datetime-local" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></Field></div>
         <Field label="Registration closes"><Input type="datetime-local" value={registrationClosesAt} onChange={(event) => setRegistrationClosesAt(event.target.value)} /></Field>
+        <Field label="Event timezone"><Select value={timezone} onValueChange={(value) => value && setTimezone(value)}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent>{["Asia/Muscat", "Asia/Dubai", "Asia/Riyadh", "Asia/Kolkata", "Europe/London", "UTC"].map((zone) => <SelectItem key={zone} value={zone}>{zone}</SelectItem>)}</SelectContent></Select></Field>
       </SettingsSection>
 
       <SettingsSection title="Registration" description="Control availability and participant instructions.">
@@ -165,8 +174,8 @@ export default function SettingsPage() {
         <Field label="Registration instructions"><Textarea value={registrationInstructions} onChange={(event) => setRegistrationInstructions(event.target.value)} rows={4} /></Field>
       </SettingsSection>
 
-      {error && <p className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-400">{error}</p>}
-      {message && <p className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-primary">{message}</p>}
+      {error && <p role="alert" className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-400">{error}</p>}
+      {message && <p role="status" className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-primary">{message}</p>}
       <div className="sticky bottom-4 flex justify-end"><Button type="submit" size="lg" disabled={saving}><Save className="size-4" />{saving ? "Saving…" : "Save all settings"}</Button></div>
     </form>
 
@@ -179,7 +188,9 @@ function SettingsSection({ title, description, children }: { title: string; desc
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="space-y-2"><Label>{label}</Label>{children}</div>;
+  const id = useId();
+  const control = isValidElement(children) ? cloneElement(children as ReactElement<{ id?: string; "aria-label"?: string }>, { id, "aria-label": label }) : children;
+  return <div className="space-y-2"><Label htmlFor={id}>{label}</Label>{control}</div>;
 }
 
 function Toggle({ label, description, checked, onCheckedChange }: { label: string; description: string; checked: boolean; onCheckedChange: (checked: boolean) => void }) {

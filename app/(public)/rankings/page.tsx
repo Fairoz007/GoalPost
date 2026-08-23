@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useQuery } from 'convex/react'
 import { Crown, Medal, Shield, TrendingUp, Trophy } from 'lucide-react'
 import { api } from '@/convex/_generated/api'
@@ -22,14 +23,14 @@ export default function RankingsPage() {
     <div className="mt-10 overflow-hidden rounded-2xl border border-border bg-card">
       <div className="hidden grid-cols-[72px_minmax(220px,1fr)_120px_100px_120px] bg-muted/50 px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground sm:grid"><span>Rank</span><span>Competitor</span><span>Record</span><span>Titles</span><span className="text-right">Rating</span></div>
       {rankings === undefined && <div className="space-y-px bg-border">{Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-[76px] animate-pulse bg-card" />)}</div>}
-      {rankings?.map((row, index) => <div key={row._id} className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 border-t border-border px-4 py-4 first:border-t-0 sm:grid-cols-[72px_minmax(220px,1fr)_120px_100px_120px] sm:px-5">
+      {rankings?.map((row, index) => <Link key={row._id} href={row.slug ? (row.kind === 'team' ? `/team/${row.slug}` : `/player/${row.slug}`) : '/rankings'} aria-disabled={!row.slug} className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 border-t border-border px-4 py-4 transition-colors first:border-t-0 hover:bg-muted/40 sm:grid-cols-[72px_minmax(220px,1fr)_120px_100px_120px] sm:px-5">
         <span className="font-display text-xl font-bold">{index === 0 ? <Crown className="size-5 text-amber-400" /> : index === 1 ? <Medal className="size-5 text-slate-300" /> : index === 2 ? <Medal className="size-5 text-amber-700" /> : index + 1}</span>
         <div className="min-w-0"><p className="truncate font-semibold">{row.displayName}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground"><Shield className="size-3" />{row.countryCode ?? 'Global'} · {row.kind}</p></div>
         <span className="flex items-center justify-end gap-1 font-display text-xl font-bold text-primary sm:order-last"><TrendingUp className="size-3" />{row.rating}</span>
         <span className="hidden text-sm text-muted-foreground sm:block">{row.wins}–{row.losses}</span>
         <span className="hidden items-center gap-1.5 text-sm text-muted-foreground sm:flex"><Trophy className="size-3.5" />{row.tournamentsWon}</span>
         <div className="col-start-2 flex gap-4 text-xs text-muted-foreground sm:hidden"><span>{row.wins}–{row.losses} record</span><span>{row.tournamentsWon} titles</span></div>
-      </div>)}
+      </Link>)}
       {rankings?.length === 0 && <div className="px-5 py-20 text-center"><Trophy className="mx-auto size-10 text-muted-foreground" /><p className="mt-4 font-semibold">No {gameLabels[game]} competitors yet</p><p className="mt-2 text-sm text-muted-foreground">Approved competitors will appear here at a provisional 1000 rating.</p></div>}
     </div>
   </div>

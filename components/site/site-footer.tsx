@@ -15,6 +15,8 @@ export function SiteFooter() {
           <Link href="/tournaments">Tournaments</Link>
           <Link href="/games">Games</Link>
           <Link href="/rankings">Rankings</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
           <Link href="/dashboard/tournaments" prefetch={false}>Organizer Portal</Link>
         </nav>
       </div>

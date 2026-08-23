@@ -39,6 +39,7 @@ export function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={pathname === item.href ? "page" : undefined}
               className={cn(
                 "rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 pathname === item.href ||
@@ -54,7 +55,7 @@ export function SiteHeader() {
         <div className="ml-auto flex items-center gap-2 lg:ml-0">
           <Link
             href="/tournaments"
-            className="hidden size-9 items-center justify-center rounded-md border border-border text-muted-foreground hover:text-white sm:flex"
+            className="hidden size-11 items-center justify-center rounded-md border border-border text-muted-foreground hover:text-white sm:flex"
             aria-label="Search tournaments"
           >
             <Search className="size-4" />
@@ -79,20 +80,23 @@ export function SiteHeader() {
           </ClerkLoaded>
           <button
             onClick={() => setOpen(!open)}
-            className="flex size-9 items-center justify-center rounded-md border border-border lg:hidden"
+            className="flex size-11 items-center justify-center rounded-md border border-border lg:hidden"
             aria-label="Toggle navigation"
+            aria-expanded={open}
+            aria-controls="mobile-navigation"
           >
             {open ? <X className="size-4" /> : <Menu className="size-4" />}
           </button>
         </div>
       </div>
       {open && (
-        <nav className="grid border-t border-border bg-background px-4 py-3 lg:hidden">
+        <nav id="mobile-navigation" aria-label="Mobile navigation" className="grid border-t border-border bg-background px-4 py-3 lg:hidden">
           {nav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
+              aria-current={pathname === item.href ? "page" : undefined}
               className="rounded-md px-3 py-3 text-sm text-muted-foreground hover:bg-muted hover:text-white"
             >
               {item.label}

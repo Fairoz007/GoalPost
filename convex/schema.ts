@@ -59,6 +59,7 @@ export default defineSchema({
       ),
     ),
     profileCompleted: v.optional(v.boolean()),
+    role: v.optional(v.union(v.literal("user"), v.literal("platform_admin"))),
     lastSeenAt: v.number(),
   })
     .index("by_tokenIdentifier", ["tokenIdentifier"])
@@ -74,6 +75,7 @@ export default defineSchema({
     startDate: v.string(),
     endDate: v.optional(v.string()),
     registrationClosesAt: v.optional(v.string()),
+    timezone: v.optional(v.string()),
     format: tournamentFormat,
     status: tournamentStatus,
     organizer: v.optional(v.string()),
@@ -300,4 +302,12 @@ export default defineSchema({
   })
     .index("by_gameId_and_completedAt", ["gameId", "completedAt"])
     .index("by_tournamentId", ["tournamentId"]),
+
+  platformStats: defineTable({
+    key: v.literal("global"),
+    activeTournaments: v.number(),
+    registeredCompetitors: v.number(),
+    completedMatches: v.number(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 });

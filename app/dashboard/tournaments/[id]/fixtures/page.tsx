@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { useParams } from 'next/navigation'
-import { CalendarPlus, Disc3, Plus, Sparkles, Swords } from 'lucide-react'
+import { CalendarPlus, Disc3 } from 'lucide-react'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
 import { Button } from '@/components/ui/button'
@@ -94,7 +94,6 @@ export default function FixturesPage() {
       <ManualFixtureDialog
         open={manualDialogOpen}
         onClose={() => setManualDialogOpen(false)}
-        tournamentId={tournamentId}
         participants={participants}
         groups={groups}
         gameId={gameId}

@@ -5,7 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { useParams } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
 import { motion } from "framer-motion";
-import { Trophy, Users, Calendar, Activity, CheckCircle2 } from "lucide-react";
+import { Trophy, Users, Calendar, Activity } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function OverviewPage() {

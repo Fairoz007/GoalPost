@@ -1,19 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import { Disc3, Plus, Shuffle, Calendar, Sparkles, Check, Users, Trash2 } from 'lucide-react'
+import { Disc3, Plus, Shuffle, Sparkles, Check, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { SpinWheel, WheelParticipant } from './spin-wheel'
+import { SpinWheel } from './spin-wheel'
 import type { Id } from '@/convex/_generated/dataModel'
 
 interface ManualFixtureDialogProps {
   open: boolean
   onClose: () => void
-  tournamentId: Id<'tournaments'>
   participants: any[]
   groups?: any[]
   gameId: 'efootball' | 'valorant'
@@ -55,7 +54,6 @@ const COMMON_ROUNDS = [
 export function ManualFixtureDialog({
   open,
   onClose,
-  tournamentId,
   participants,
   groups,
   gameId,

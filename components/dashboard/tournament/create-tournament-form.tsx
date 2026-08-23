@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { cloneElement, isValidElement, type FormEvent, type ReactElement, useId, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation } from "convex/react";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { gameModules, valorantMatchModes, type GameId, type ValorantMatchMode } from "@/lib/game-modules";
 
@@ -20,6 +21,7 @@ type FormState = {
   matchMode: ValorantMatchMode; maxSlots: number; bestOf: number; prizePool: string;
   registrationGroupUrl: string; registrationInstructions: string; rules: string;
   startDate: string; endDate: string;
+  timezone: string;
   registrationEnabled: boolean;
 };
 
@@ -50,10 +52,10 @@ function makeInitial(gameId: GameId): FormState {
     name: "", slug: "", description: "", organizer: "",
     format: (gameId === "valorant" ? "Single Elimination" : "Single Group + Finals"),
     matchMode: "scrimmage", maxSlots: gameId === "valorant" ? 8 : 16,
-    bestOf: gameId === "valorant" ? 3 : 1, prizePool: "", registrationGroupUrl: WHATSAPP_GROUP_URL,
+    bestOf: gameId === "valorant" ? 3 : 1, prizePool: "", registrationGroupUrl: "",
     registrationInstructions: "Your place is confirmed automatically after registration. Please join the WhatsApp group for check-in, fixtures, results, and announcements.",
     rules: gameId === "valorant" ? valorantMatchModes.scrimmage.rules : DEFAULT_EFOOTBALL_RULES,
-    startDate: "", endDate: "", registrationEnabled: true,
+    startDate: "", endDate: "", timezone: "Asia/Muscat", registrationEnabled: true,
   };
 }
 
@@ -69,6 +71,20 @@ export function CreateTournamentForm({ gameId }: { gameId: GameId }) {
   const create = useMutation(api.tournaments.create);
   const router = useRouter();
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((state) => ({ ...state, [key]: value }));
+  const validateStep = (index: number) => {
+    if (index === 0 && (form.name.trim().length < 3 || !form.organizer.trim())) return "Enter a tournament name of at least 3 characters and the organizer name.";
+    if (index === 2 && (!Number.isInteger(form.maxSlots) || form.maxSlots < 2 || form.maxSlots > 128)) return "Maximum slots must be a whole number between 2 and 128.";
+    if (index === 3 && form.registrationGroupUrl && !/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+/.test(form.registrationGroupUrl)) return "Use an official https://chat.whatsapp.com invitation URL.";
+    if (index === 3 && form.rules.trim().length < 20) return "Add clear tournament rules before continuing.";
+    if (index === 4) {
+      const starts = Date.parse(form.startDate);
+      const ends = form.endDate ? Date.parse(form.endDate) : undefined;
+      if (!Number.isFinite(starts)) return "Choose a valid tournament start date and time.";
+      if (ends !== undefined && (!Number.isFinite(ends) || ends <= starts)) return "The end date must be after the start date.";
+    }
+    return "";
+  };
+  const continueToNextStep = () => { const message = validateStep(step); setError(message); if (!message) setStep((value) => value + 1); };
 
   const selectMode = (mode: ValorantMatchMode) => {
     setForm((state) => {
@@ -84,7 +100,9 @@ export function CreateTournamentForm({ gameId }: { gameId: GameId }) {
 
   const finish = async (event: FormEvent) => {
     event.preventDefault();
-    setError("");
+    const validationError = [0, 1, 2, 3, 4].map(validateStep).find(Boolean) ?? "";
+    setError(validationError);
+    if (validationError) return;
     setSaving(true);
     try {
       const slug = (form.slug || form.name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -95,7 +113,7 @@ export function CreateTournamentForm({ gameId }: { gameId: GameId }) {
         prizePool: form.prizePool || undefined, registrationGroupUrl: form.registrationGroupUrl || undefined,
         registrationInstructions: form.registrationInstructions || undefined, rules: form.rules || undefined,
         registrationEnabled: form.registrationEnabled,
-        startDate: new Date(form.startDate).toISOString(), endDate: form.endDate ? new Date(form.endDate).toISOString() : undefined,
+        startDate: new Date(form.startDate).toISOString(), endDate: form.endDate ? new Date(form.endDate).toISOString() : undefined, timezone: form.timezone,
         status: "Draft", currentStage: "Registration",
       });
       setCreated(result);
@@ -158,14 +176,15 @@ export function CreateTournamentForm({ gameId }: { gameId: GameId }) {
 
           {step === 4 && <Panel title="Schedule" copy="Set the event window. Fixtures can be generated as soon as participants register.">
             <div className="grid gap-5 sm:grid-cols-2"><Field label="Starts"><Input type="datetime-local" value={form.startDate} onChange={(event) => update("startDate", event.target.value)} required /></Field><Field label="Ends"><Input type="datetime-local" value={form.endDate} onChange={(event) => update("endDate", event.target.value)} /></Field></div>
+            <Field label="Event timezone"><Select value={form.timezone} onValueChange={(value) => value && update("timezone", value)}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent>{["Asia/Muscat", "Asia/Dubai", "Asia/Riyadh", "Asia/Kolkata", "Europe/London", "UTC"].map((zone) => <SelectItem key={zone} value={zone}>{zone}</SelectItem>)}</SelectContent></Select></Field>
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-5"><p className="flex items-center gap-2 font-semibold"><Info className="size-4 text-primary" />Ready to create {form.name || "your tournament"}?</p><p className="mt-1 text-sm text-muted-foreground">It will be saved as a private draft in the tournament dashboard.{isValorant ? ` Every generated fixture will use ${valorantMatchModes[form.matchMode].name} rules.` : ""}</p></div>
           </Panel>}
         </div>
 
-        {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+        {error && <p role="alert" className="mt-4 text-sm text-red-400">{error}</p>}
         <div className="mt-8 flex justify-between border-t border-border pt-6">
           <Button type="button" variant="outline" disabled={step === 0} onClick={() => setStep((value) => value - 1)}><ArrowLeft className="size-4" />Back</Button>
-          {step < steps.length - 1 ? <Button type="button" onClick={() => setStep((value) => value + 1)} disabled={step === 0 && !form.name}>Continue<ArrowRight className="size-4" /></Button> : <Button type="submit" disabled={saving}>{saving ? "Creating…" : "Create tournament"}<Check className="size-4" /></Button>}
+          {step < steps.length - 1 ? <Button type="button" onClick={continueToNextStep}>Continue<ArrowRight className="size-4" /></Button> : <Button type="submit" disabled={saving}>{saving ? "Creating…" : "Create tournament"}<Check className="size-4" /></Button>}
         </div>
       </form>
     </div>
@@ -177,5 +196,7 @@ function Panel({ title, copy, children }: { title: string; copy: string; childre
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="space-y-2"><Label>{label}</Label>{children}</div>;
+  const id = useId();
+  const control = isValidElement(children) ? cloneElement(children as ReactElement<{ id?: string; "aria-label"?: string }>, { id, "aria-label": label }) : children;
+  return <div className="space-y-2"><Label htmlFor={id}>{label}</Label>{control}</div>;
 }

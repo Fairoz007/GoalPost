@@ -48,6 +48,7 @@ export function AppErrorFallback({
     console.error("D-One Arena page error", error);
     recoverFromStalePage(error);
   }, [error]);
+  const temporary = isTemporaryLoadingError(error);
 
   const content = (
     <main
@@ -59,17 +60,17 @@ export function AppErrorFallback({
           <AlertTriangle className="size-7" aria-hidden="true" />
         </span>
         <p className="mt-6 text-xs font-bold uppercase tracking-[0.22em] text-orange-500">
-          Temporary loading issue
+          {temporary ? "Temporary loading issue" : "Something went wrong"}
         </p>
         <h1 className="mt-3 text-3xl font-bold uppercase tracking-tight">Let&apos;s get you back in</h1>
         <p className="mx-auto mt-4 max-w-sm text-sm leading-6 text-zinc-400">
-          The page hit a temporary browser or connection problem. Your tournament data and registration are safe.
+          {temporary ? "The page hit a temporary browser or connection problem. Try again or return home." : "The page could not be displayed. Try again; if the problem continues, use the reference below when contacting support."}
         </p>
         <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
           <Button onClick={retry} size="lg">
             <RefreshCw className="size-4" /> Try again
           </Button>
-          <Button render={<Link href="/" />} variant="outline" size="lg">
+          <Button nativeButton={false} render={<Link href="/" />} variant="outline" size="lg">
             <ArrowLeft className="size-4" /> Back to home
           </Button>
         </div>

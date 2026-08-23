@@ -1,6 +1,7 @@
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { ConvexError } from "convex/values";
+import { isPlatformAdmin } from "./platformAuth";
 
 type AuthCtx = QueryCtx | MutationCtx;
 
@@ -19,7 +20,7 @@ export async function requireTournamentOwner(
     ctx.db.get("tournaments", tournamentId),
   ]);
   if (!tournament) throw new ConvexError("Tournament not found.");
-  if (!tournament.ownerToken || tournament.ownerToken !== identity.tokenIdentifier) {
+  if ((!tournament.ownerToken || tournament.ownerToken !== identity.tokenIdentifier) && !(await isPlatformAdmin(ctx))) {
     throw new ConvexError("You do not have permission to manage this tournament.");
   }
   return tournament;

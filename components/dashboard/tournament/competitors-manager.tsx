@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useMemo, useState } from 'react'
+import { cloneElement, FormEvent, isValidElement, type ReactElement, useId, useMemo, useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { Mail, Plus, Send, Shield, Trash2, UserRound, Users, X } from 'lucide-react'
 import { api } from '@/convex/_generated/api'
@@ -41,8 +41,9 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
   onRemove: (id: Id<'participants'>) => Promise<unknown>
 }) {
   const isValorant = gameId === 'valorant'
+  const currentRole = useQuery(api.platformAdmin.currentRole)
   const history = useQuery(api.participants.getAllUnique) as Competitor[] | undefined
-  const directory = useQuery(api.users.listDirectory, { tournamentId }) as DirectoryUser[] | undefined
+  const directory = useQuery(api.users.listDirectory, currentRole === 'platform_admin' ? { tournamentId } : 'skip') as DirectoryUser[] | undefined
   const invitations = useQuery(api.invitations.listForTournament, { tournamentId })
   const createInvitation = useMutation(api.invitations.create)
   const cancelInvitation = useMutation(api.invitations.cancel)
@@ -222,5 +223,7 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="space-y-2"><Label>{label}</Label>{children}</div>
+  const id = useId()
+  const control = isValidElement(children) ? cloneElement(children as ReactElement<{ id?: string; "aria-label"?: string }>, { id, "aria-label": label }) : children
+  return <div className="space-y-2"><Label htmlFor={id}>{label}</Label>{control}</div>
 }

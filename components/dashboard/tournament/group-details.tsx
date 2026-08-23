@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { MoreVertical, Settings, Shuffle, Download, Trash } from "lucide-react";
+import { Settings, Shuffle, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Id } from "@/convex/_generated/dataModel";
@@ -37,16 +37,6 @@ export function GroupDetails({ group, participants, matches, onGenerateMatches, 
   const groupMatches = matches.filter(m => m.groupId === group._id);
   const groupParticipants = participants.filter(p => p.groupId === group._id);
   const unassignedParticipants = participants.filter(p => !p.groupId);
-
-  const handleShuffle = () => {
-    if (!onAssignParticipant) return;
-    unassignedParticipants.forEach(p => {
-      // Randomly assign it? Wait, shuffle here might mean shuffling random unassigned teams.
-      // But we just assign all unassigned? Maybe one by one?
-      // Just a simple "assign a random unassigned team to this group" is better.
-      if (Math.random() > 0.5) return; // 50% chance for each unassigned? No, that's weird.
-    });
-  };
 
   const assignRandomTeam = () => {
     if (!onAssignParticipant || unassignedParticipants.length === 0) return;

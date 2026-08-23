@@ -1,0 +1,1 @@
+export default function OverlayNotFound() { return <main className="grid min-h-dvh place-items-center bg-transparent text-center text-white"><div><h1 className="font-display text-4xl font-bold uppercase">Overlay not found</h1><p className="mt-3 text-white/60">Check the tournament overlay URL.</p></div></main>; }

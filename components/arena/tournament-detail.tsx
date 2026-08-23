@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { cn } from "@/lib/utils";
 import { COUNTRY_OPTIONS } from "@/lib/countries";
 import { ObsOverlayPanel } from "@/components/arena/obs-overlay-panel";
+import { formatEventDate } from "@/lib/date-time";
 
 const tabs = [
   "Overview",
@@ -39,14 +40,12 @@ const tabs = [
   "Broadcast",
   "Rules",
 ] as const;
-const WHATSAPP_URL = "https://chat.whatsapp.com/DcM0VixkixZ5QBYIXS6TW6?s=cl&p=a&mlu";
-
 function getRegistrationGroupUrl(url?: string | null) {
   const trimmed = url?.trim() ?? "";
-  if (!trimmed || trimmed.toLowerCase().includes("discord") || !trimmed.startsWith("http")) {
-    return WHATSAPP_URL;
-  }
-  return trimmed;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "https:" && parsed.hostname === "chat.whatsapp.com" ? parsed.toString() : undefined;
+  } catch { return undefined; }
 }
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -101,12 +100,14 @@ export function TournamentDetail({
   const profile = useQuery(api.users.getProfile, isAuthenticated ? {} : "skip");
   const register = useMutation(api.arena.register);
   const quickRegister = useMutation(api.arena.quickRegister);
+  const withdrawRegistration = useMutation(api.arena.withdrawRegistration);
   const userRegistration = useQuery(
     api.arena.getRegistrationStatus,
     tournamentId && isAuthenticated ? { tournamentId } : "skip",
   );
   const isUserRegistered = Boolean(userRegistration?.registered);
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams?.get("tab");
   const registerParam = searchParams?.get("register") === "true";
@@ -120,10 +121,12 @@ export function TournamentDetail({
   const [registering, setRegistering] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [quickRegistering, setQuickRegistering] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
   const [showFullForm, setShowFullForm] = useState(false);
   const [error, setError] = useState("");
   const [registerCountry, setRegisterCountry] = useState("");
   const [gameIdInput, setGameIdInput] = useState("");
+  const [acceptedRules, setAcceptedRules] = useState(false);
 
   const byParticipant = useMemo(
     () => new Map((participants ?? []).map((p) => [p._id, p])),
@@ -136,12 +139,14 @@ export function TournamentDetail({
 
   const handleQuickRegister = async () => {
     if (!tournamentId) return;
+    if (!acceptedRules) { setError("Accept the tournament rules and privacy policy before registering."); return; }
     setError("");
     setQuickRegistering(true);
     try {
       const selectedGameId = tournament?.gameId ?? "efootball";
       await quickRegister({
         tournamentId,
+        acceptedRules,
         efootballId: selectedGameId === "efootball" ? gameIdInput.trim() || undefined : undefined,
         valorantId: selectedGameId === "valorant" ? gameIdInput.trim() || undefined : undefined,
       });
@@ -163,6 +168,20 @@ export function TournamentDetail({
   const signInUrlHero = `/sign-in?redirect_url=${encodeURIComponent(`${currentPath}?register=true`)}`;
   const signInUrlRegistration = `/sign-in?redirect_url=${encodeURIComponent(`${currentPath}?tab=Registration&register=true`)}`;
   const game = getGameModule(tournament?.gameId);
+  const selectTab = (nextTab: (typeof tabs)[number]) => {
+    setTab(nextTab);
+    const params = new URLSearchParams(searchParams?.toString());
+    params.set("tab", nextTab);
+    params.delete("register");
+    router.replace(`${currentPath}?${params.toString()}`, { scroll: false });
+  };
+  const handleWithdraw = async () => {
+    if (!tournamentId || !window.confirm("Withdraw this registration and remove your competitor entry?")) return;
+    setWithdrawing(true); setError("");
+    try { await withdrawRegistration({ tournamentId }); setSubmitted(false); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Could not withdraw registration."); }
+    finally { setWithdrawing(false); }
+  };
 
   useEffect(() => {
     if (tabParam && (tabs as readonly string[]).includes(tabParam)) {
@@ -244,7 +263,7 @@ export function TournamentDetail({
         countryCode: String(form.get("country") || "") || undefined,
         efootballId: game.id === "efootball" ? rawGameId || undefined : undefined,
         valorantId: game.id === "valorant" ? rawGameId || undefined : undefined,
-        acceptedRules: true,
+        acceptedRules: form.get("acceptedRules") === "on",
         captainName,
         roster,
       });
@@ -300,7 +319,7 @@ export function TournamentDetail({
             </span>
             <span className="flex items-center gap-2">
               <CalendarDays className="size-4 text-primary" />
-              {new Date(tournament.startDate).toLocaleDateString()}
+              {formatEventDate(tournament.startDate, tournament.timezone)} · {tournament.timezone ?? "Asia/Muscat"}
             </span>
             <span className="flex items-center gap-2">
               <Users className="size-4 text-primary" />
@@ -377,11 +396,13 @@ export function TournamentDetail({
         </section>
       )}
       <div className="sticky top-[72px] z-30 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 sm:px-6">
+        <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 sm:px-6" role="tablist" aria-label="Tournament sections">
           {tabs.map((item) => (
             <button
               key={item}
-              onClick={() => setTab(item)}
+              onClick={() => selectTab(item)}
+              role="tab"
+              aria-selected={tab === item}
               className={cn(
                 "inline-flex items-center gap-1.5 shrink-0 border-b-2 px-4 py-4 text-sm font-semibold transition",
                 tab === item
@@ -399,7 +420,7 @@ export function TournamentDetail({
           ))}
         </div>
       </div>
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
         {tab === "Overview" && (
           <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
             <div>
@@ -563,8 +584,9 @@ export function TournamentDetail({
             signInUrl={signInUrlRegistration}
             profile={profile}
             onRegister={() => setRegistering(true)}
-            onQuickRegister={handleQuickRegister}
-            quickRegistering={quickRegistering}
+            onWithdraw={handleWithdraw}
+            withdrawing={withdrawing}
+            error={error}
           />
         )}
         {tab === "Participants" && (
@@ -675,7 +697,7 @@ export function TournamentDetail({
             </div>
           </div>
         )}
-      </main>
+      </div>
       {registering && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4">
           <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-card p-6">
@@ -757,7 +779,7 @@ export function TournamentDetail({
                   Close & View Tournament
                 </Button>
               </div>
-            ) : profile?.profileCompleted && !showFullForm && game.id === "valorant" ? (
+            ) : profile?.profileCompleted && !showFullForm && game.id === "valorant" && game.teamSize === 1 ? (
               <div className="space-y-5">
                 <p className="text-xs font-bold uppercase tracking-wider text-primary">
                   ⚡ 1-Click Fast Entry · Secured by Clerk
@@ -805,13 +827,14 @@ export function TournamentDetail({
                   </div>
                 </div>
 
-                {error && <p className="text-sm text-red-400">{error}</p>}
+                <label className="flex items-start gap-3 rounded-xl border border-border bg-background p-3 text-xs leading-5 text-muted-foreground"><input type="checkbox" checked={acceptedRules} onChange={(event) => setAcceptedRules(event.target.checked)} className="mt-1 size-4 accent-primary" /><span>I accept the <button type="button" onClick={() => selectTab("Rules")} className="underline text-foreground">tournament rules</button> and acknowledge the <Link href="/privacy" className="underline text-foreground">Privacy Policy</Link>.</span></label>
+                {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
 
                 <Button
                   size="lg"
                   className="w-full gap-2 bg-gradient-to-r from-red-600 to-rose-600 font-bold shadow-lg shadow-red-500/20"
                   onClick={handleQuickRegister}
-                  disabled={quickRegistering}
+                  disabled={quickRegistering || !acceptedRules}
                 >
                   <Zap className="size-4" />
                   {quickRegistering ? "Confirming Registration..." : `⚡ 1-Click Register for ${game.name}`}
@@ -973,11 +996,8 @@ export function TournamentDetail({
                       {tournament.registrationInstructions}
                     </p>
                   )}
-                  <p className="text-xs leading-5 text-muted-foreground">
-                    Submitting confirms that you accept the tournament rules and
-                    organizer decisions.
-                  </p>
-                  {error && <p className="text-sm text-red-400">{error}</p>}
+                  <label className="flex items-start gap-3 rounded-xl border border-border bg-background p-3 text-xs leading-5 text-muted-foreground"><input name="acceptedRules" type="checkbox" required className="mt-1 size-4 accent-primary" /><span>I accept the tournament rules and organizer decisions and acknowledge the <Link href="/privacy" className="underline text-foreground">Privacy Policy</Link>.</span></label>
+                  {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
                   <Button className="w-full" type="submit">
                     Register and join automatically
                   </Button>
@@ -1020,6 +1040,9 @@ function RegistrationSection({
   signInUrl,
   profile,
   onRegister,
+  onWithdraw,
+  withdrawing,
+  error,
   onQuickRegister,
   quickRegistering,
 }: {
@@ -1032,6 +1055,9 @@ function RegistrationSection({
   signInUrl: string;
   profile?: any;
   onRegister: () => void;
+  onWithdraw?: () => void;
+  withdrawing?: boolean;
+  error?: string;
   onQuickRegister?: () => void;
   quickRegistering?: boolean;
 }) {
@@ -1089,13 +1115,15 @@ function RegistrationSection({
               Open WhatsApp Group
               <ArrowRight className="size-4 shrink-0" />
             </a>
+            {onWithdraw && <Button type="button" variant="outline" className="mt-3 w-full sm:w-auto" onClick={onWithdraw} disabled={withdrawing}>{withdrawing ? "Withdrawing…" : "Withdraw registration"}</Button>}
+            {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
           </div>
         ) : !available ? (
           <p className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-200">
             This tournament is not accepting registrations right now. You can still review fixtures, standings, and rules.
           </p>
         ) : isAuthenticated ? (
-          profile?.profileCompleted && onQuickRegister && game.id === "valorant" ? (
+          profile?.profileCompleted && onQuickRegister && game.id === "efootball" ? (
             <div className="mt-6 space-y-3">
               <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4 max-w-md">
                 <p className="text-xs font-bold uppercase text-primary flex items-center gap-1.5">

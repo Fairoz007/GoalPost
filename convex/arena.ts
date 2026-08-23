@@ -6,6 +6,9 @@ import { competitorRankingKey, insertCompetitor } from "./participants";
 import { requireTournamentAdmin } from "./tournamentAuth";
 import { requireIdentity } from "./model/auth";
 import { normalizeWhatsAppNumber } from "./model/contact";
+import { requireVisibleTournament } from "./model/tournamentAccess";
+import { cleanRequired } from "./model/validation";
+import { adjustPlatformStats } from "./model/platformStats";
 
 export const listRankings = query({
   args: { gameId, limit: v.optional(v.number()) },
@@ -214,10 +217,12 @@ export const quickRegister = mutation({
       role: v.union(v.literal("captain"), v.literal("player"), v.literal("substitute"), v.literal("coach")),
       countryCode: v.optional(v.string()),
     }))),
+    acceptedRules: v.optional(v.boolean()),
   },
   returns: v.id("registrations"),
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx);
+    if (args.acceptedRules !== true) throw new ConvexError("You must explicitly accept the tournament rules.");
     const tournament = await ctx.db.get("tournaments", args.tournamentId);
     if (!tournament || tournament.registrationEnabled === false || ["Draft", "Completed", "Cancelled"].includes(tournament.status)) {
       throw new ConvexError("Registration is not available for this tournament.");
@@ -271,19 +276,11 @@ export const quickRegister = mutation({
     }
 
     const rules = rulesFor(selectedGame);
-    let roster = args.roster ?? currentUser?.defaultRoster ?? [];
+    const roster = args.roster ?? currentUser?.defaultRoster ?? [];
     let captainName = args.captainName ?? currentUser?.captainName ?? (selectedGame === "valorant" ? applicantName : undefined);
 
     if (selectedGame === "valorant") {
-      if (!roster.length) {
-        roster = [
-          { displayName: captainName || applicantName, role: "captain" },
-          { displayName: `${applicantName} Mate 2`, role: "player" },
-          { displayName: `${applicantName} Mate 3`, role: "player" },
-          { displayName: `${applicantName} Mate 4`, role: "player" },
-          { displayName: `${applicantName} Mate 5`, role: "player" },
-        ];
-      }
+      if (!roster.length) throw new ConvexError("Add the complete VALORANT roster before registering.");
       const starters = roster.filter((member) => member.role === "captain" || member.role === "player");
       if (starters.length !== rules.teamSize) throw new ConvexError(`VALORANT registration requires exactly ${rules.teamSize} starting players.`);
       if (!captainName) captainName = roster.find((m) => m.role === "captain")?.displayName || applicantName;
@@ -301,7 +298,7 @@ export const quickRegister = mutation({
       konamiId: konamiId || undefined,
       valorantId: valorantId || undefined,
       playerRating: args.playerRating,
-      acceptedRules: true,
+      acceptedRules: args.acceptedRules,
       captainName,
       gameId: selectedGame,
       competitorKind: rules.competitorKind,
@@ -370,13 +367,13 @@ export const reviewRegistration = mutation({
 export const listAnnouncements = query({
   args: { tournamentId: v.id("tournaments") },
   returns: v.array(v.any()),
-  handler: async (ctx, args) => await ctx.db.query("announcements").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.tournamentId)).order("desc").take(50),
+  handler: async (ctx, args) => (await requireVisibleTournament(ctx, args.tournamentId)) ? await ctx.db.query("announcements").withIndex("by_tournamentId", (q) => q.eq("tournamentId", args.tournamentId)).order("desc").take(50) : [],
 });
 
 export const createAnnouncement = mutation({
   args: { tournamentId: v.id("tournaments"), title: v.string(), body: v.string(), pinned: v.boolean(), adminCode: v.optional(v.string()) },
   returns: v.id("announcements"),
-  handler: async (ctx, args) => { await requireTournamentAdmin(ctx, args.tournamentId, args.adminCode); const { adminCode: _adminCode, ...announcement } = args; return await ctx.db.insert("announcements", { ...announcement, createdAt: Date.now() }); },
+  handler: async (ctx, args) => { await requireTournamentAdmin(ctx, args.tournamentId, args.adminCode); const { adminCode: _adminCode, ...announcement } = args; return await ctx.db.insert("announcements", { ...announcement, title: cleanRequired(args.title, "Announcement title", 120), body: cleanRequired(args.body, "Announcement body", 4000), createdAt: Date.now() }); },
 });
 
 export const reportDispute = mutation({
@@ -414,6 +411,43 @@ export const listMyRegistrations = query({
       ...registration,
       roster: await ctx.db.query("registrationRoster").withIndex("by_registrationId", (q) => q.eq("registrationId", registration._id)).take(16),
     })));
+  },
+});
+
+export const withdrawRegistration = mutation({
+  args: { tournamentId: v.id("tournaments") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    const tournament = await ctx.db.get("tournaments", args.tournamentId);
+    if (!tournament) throw new ConvexError("Tournament not found.");
+    if (Date.parse(tournament.startDate) <= Date.now() || ["Ongoing", "Completed", "Cancelled"].includes(tournament.status)) {
+      throw new ConvexError("Registration can no longer be withdrawn after the tournament starts.");
+    }
+    const registration = await ctx.db
+      .query("registrations")
+      .withIndex("by_ownerToken_and_tournamentId", (q) => q.eq("ownerToken", identity.tokenIdentifier).eq("tournamentId", args.tournamentId))
+      .first();
+    if (!registration || registration.status === "rejected") throw new ConvexError("No active registration was found.");
+
+    if (registration.participantId) {
+      const participant = await ctx.db.get("participants", registration.participantId);
+      if (participant) {
+        const [asFirst, asSecond] = await Promise.all([
+          ctx.db.query("matches").withIndex("by_player1Id", (q) => q.eq("player1Id", participant._id)).take(1),
+          ctx.db.query("matches").withIndex("by_player2Id", (q) => q.eq("player2Id", participant._id)).take(1),
+        ]);
+        if (asFirst.length || asSecond.length) throw new ConvexError("Fixtures already reference this registration. Contact the organizer to withdraw safely.");
+        await ctx.db.delete(participant._id);
+        await adjustPlatformStats(ctx, { registeredCompetitors: -1 });
+      }
+    }
+    const roster = await ctx.db.query("registrationRoster").withIndex("by_registrationId", (q) => q.eq("registrationId", registration._id)).take(16);
+    for (const member of roster) await ctx.db.delete(member._id);
+    const invitation = await ctx.db.query("tournamentInvites").withIndex("by_tournamentId_and_email", (q) => q.eq("tournamentId", args.tournamentId).eq("email", registration.applicantEmail)).first();
+    if (invitation) await ctx.db.delete(invitation._id);
+    await ctx.db.delete(registration._id);
+    return null;
   },
 });
 

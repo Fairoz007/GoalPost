@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Disc3, Sparkles, Volume2, VolumeX, RotateCw, Trophy, Check, ArrowRight, RotateCcw, Zap } from 'lucide-react'
+import { Disc3, Sparkles, Volume2, VolumeX, RotateCw, Check, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
@@ -270,7 +270,7 @@ export function SpinWheel({
 
       ctx.restore()
     },
-    [pool, currentStep],
+    [canvasSize, pool, currentStep],
   )
 
   useEffect(() => {

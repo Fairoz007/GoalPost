@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -100,6 +100,13 @@ describe("game-aware tournament engine", () => {
     const base = convexTest(schema, modules);
     const organizer = base.withIdentity(organizerIdentity);
     const outsider = base.withIdentity({ subject: "clerk-outsider", issuer: "https://clerk.test", tokenIdentifier: "https://clerk.test|clerk-outsider" });
+    await base.run(async (ctx) => await ctx.db.insert("users", {
+      tokenIdentifier: organizerIdentity.tokenIdentifier,
+      clerkUserId: organizerIdentity.subject,
+      email: "organizer@example.com",
+      role: "platform_admin",
+      lastSeenAt: Date.now(),
+    }));
     const registeredUserId = await base.run(async (ctx) => await ctx.db.insert("users", {
       tokenIdentifier: "https://clerk.test|clerk-player",
       clerkUserId: "clerk-player",
@@ -115,10 +122,10 @@ describe("game-aware tournament engine", () => {
       startDate: "2026-08-10T10:00:00.000Z",
     });
 
-    expect(await organizer.query(api.users.listDirectory, { tournamentId })).toMatchObject([
-      { _id: registeredUserId, name: "Registered Player", email: "registered@example.com", alreadyParticipant: false },
-    ]);
-    await expect(outsider.query(api.users.listDirectory, { tournamentId })).rejects.toThrow("permission");
+    expect((await organizer.query(api.users.listDirectory, { tournamentId })).find((user) => user._id === registeredUserId)).toMatchObject(
+      { name: "Registered Player", email: "registered@example.com", alreadyParticipant: false },
+    );
+    await expect(outsider.query(api.users.listDirectory, { tournamentId })).rejects.toThrow();
     const inviteId = await organizer.mutation(api.invitations.create, {
       tournamentId,
       userId: registeredUserId,
@@ -135,9 +142,9 @@ describe("game-aware tournament engine", () => {
       name: "Registered Player",
       gameId: "efootball",
     });
-    expect(await organizer.query(api.users.listDirectory, { tournamentId })).toMatchObject([
-      { _id: registeredUserId, alreadyParticipant: true },
-    ]);
+    expect((await organizer.query(api.users.listDirectory, { tournamentId })).find((user) => user._id === registeredUserId)).toMatchObject(
+      { alreadyParticipant: true },
+    );
     const [participant] = await base.query(api.participants.getByTournament, { tournamentId });
     expect(participant).not.toHaveProperty("userId");
     await expect(organizer.mutation(api.participants.create, {
@@ -346,6 +353,8 @@ describe("game-aware tournament engine", () => {
     const [match] = await t.query(api.matches.getByTournament, { tournamentId });
     await t.mutation(api.matches.setStatus, { matchId: match._id, adminCode: editCodeFor(tournamentId), status: "Live" });
     const overlay = await t.query(api.matches.getOverlayData, { tournamentId });
+    expect(overlay).not.toBeNull();
+    if (!overlay) throw new Error("Expected overlay data.");
     expect(overlay.match).toMatchObject({ _id: match._id, status: "Live" });
     expect(overlay.tournament).not.toHaveProperty("adminCode");
     expect(overlay.tournament.gameId).toBe("valorant");
@@ -470,6 +479,7 @@ describe("game-aware tournament engine", () => {
     const registrationId = await player.mutation(api.arena.quickRegister, {
       tournamentId,
       playerRating: 1450,
+      acceptedRules: true,
     });
     expect(registrationId).toBeDefined();
 
@@ -481,7 +491,7 @@ describe("game-aware tournament engine", () => {
 
     // Duplicate registration is rejected
     await expect(
-      player.mutation(api.arena.quickRegister, { tournamentId, playerRating: 1450 }),
+      player.mutation(api.arena.quickRegister, { tournamentId, playerRating: 1450, acceptedRules: true }),
     ).rejects.toThrow("already registered");
   });
 
@@ -528,6 +538,75 @@ describe("game-aware tournament engine", () => {
     matches = await t.query(api.matches.getByTournament, { tournamentId });
     expect(matches).toHaveLength(1);
     expect(matches[0].round).toBe("Showmatch");
+  });
+
+  test("platform admin bootstrap is internal and grants cross-tournament management", async () => {
+    const base = convexTest(schema, modules);
+    const owner = base.withIdentity(organizerIdentity);
+    const { tournamentId } = await owner.mutation(api.tournaments.create, {
+      name: "Admin managed", gameId: "efootball", format: "League", status: "Upcoming", startDate: "2026-08-10T10:00:00.000Z",
+    });
+    const adminIdentity = { subject: "clerk-admin", issuer: "https://clerk.test", tokenIdentifier: "https://clerk.test|clerk-admin", email: "fairozfaisal2001@gmail.com" };
+    await base.run(async (ctx) => await ctx.db.insert("users", {
+      tokenIdentifier: adminIdentity.tokenIdentifier, clerkUserId: adminIdentity.subject, email: adminIdentity.email, lastSeenAt: Date.now(),
+    }));
+    await base.mutation(internal.platformAdmin.bootstrapByEmail, { email: "FAIROZFAISAL2001@gmail.com" });
+    const admin = base.withIdentity(adminIdentity);
+    expect(await admin.query(api.platformAdmin.currentRole, {})).toBe("platform_admin");
+    await admin.mutation(api.tournaments.update, { id: tournamentId, name: "Admin updated" });
+  });
+
+  test("draft child data stays private", async () => {
+    const base = convexTest(schema, modules);
+    const owner = base.withIdentity(organizerIdentity);
+    const { tournamentId } = await owner.mutation(api.tournaments.create, {
+      name: "Private draft", gameId: "efootball", format: "League", status: "Draft", startDate: "2026-08-10T10:00:00.000Z",
+    });
+    await owner.mutation(api.participants.create, { tournamentId, name: "Hidden player" });
+    expect(await base.query(api.participants.getByTournament, { tournamentId })).toEqual([]);
+    expect(await base.query(api.matches.getByTournament, { tournamentId })).toEqual([]);
+    expect(await base.query(api.groups.getByTournament, { tournamentId })).toEqual([]);
+  });
+
+  test("cross-tournament group references and unsafe invite URLs are rejected", async () => {
+    const t = authenticatedTest();
+    const first = await createTournament(t, "efootball", "League");
+    const second = (await t.mutation(api.tournaments.create, {
+      name: "Second", slug: "second", gameId: "efootball", format: "League", status: "Upcoming", startDate: "2026-08-10T10:00:00.000Z",
+    })).tournamentId;
+    const foreignGroup = await t.mutation(api.groups.create, { tournamentId: second, name: "Foreign" });
+    await expect(t.mutation(api.matches.generateGroupMatches, { tournamentId: first, groupId: foreignGroup })).rejects.toThrow("does not belong");
+    await expect(t.mutation(api.tournaments.update, { id: first, registrationGroupUrl: "https://example.com/phish" })).rejects.toThrow("WhatsApp");
+    await expect(t.mutation(api.tournaments.update, { id: first, timezone: "Not/A-Timezone" })).rejects.toThrow("IANA timezone");
+    expect(await t.query(api.tournaments.getOwnedById, { id: first })).toMatchObject({ timezone: "Asia/Muscat" });
+  });
+
+  test("completed match results are idempotent and immutable", async () => {
+    const t = authenticatedTest();
+    const tournamentId = await createTournament(t, "efootball", "League");
+    const first = await t.mutation(api.participants.create, { tournamentId, name: "One" });
+    const second = await t.mutation(api.participants.create, { tournamentId, name: "Two" });
+    const matchId = await t.mutation(api.matches.create, { tournamentId, player1Id: first, player2Id: second });
+    await t.mutation(api.matches.updateScore, { matchId, player1Score: 2, player2Score: 1 });
+    await t.mutation(api.matches.updateScore, { matchId, player1Score: 2, player2Score: 1 });
+    await expect(t.mutation(api.matches.updateScore, { matchId, player1Score: 1, player2Score: 2 })).rejects.toThrow("immutable");
+    await expect(t.mutation(api.matches.remove, { matchId })).rejects.toThrow("cannot be deleted");
+  });
+
+  test("players can withdraw before tournament start but not after fixtures reference them", async () => {
+    const base = convexTest(schema, modules);
+    const organizer = base.withIdentity(organizerIdentity);
+    const player = base.withIdentity({ subject: "withdraw-player", issuer: "https://clerk.test", tokenIdentifier: "https://clerk.test|withdraw-player" });
+    const { tournamentId } = await organizer.mutation(api.tournaments.create, {
+      name: "Withdrawal Cup", gameId: "efootball", format: "League", status: "Upcoming", startDate: "2030-08-10T10:00:00.000Z",
+    });
+    await player.mutation(api.arena.register, {
+      tournamentId, applicantName: "Withdraw Me", applicantEmail: "withdraw@example.com", phoneNumber: "+96890000000",
+      konamiId: "withdraw-me", playerRating: 1000, countryCode: "OM", acceptedRules: true,
+    });
+    await player.mutation(api.arena.withdrawRegistration, { tournamentId });
+    expect(await player.query(api.arena.listMyRegistrations, {})).toEqual([]);
+    expect(await organizer.query(api.participants.getByTournament, { tournamentId })).toEqual([]);
   });
 });
 

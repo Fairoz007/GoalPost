@@ -39,7 +39,12 @@ export const metadata: Metadata = {
     url: "https://arena.donestudio.in",
     siteName: "D-One Arena",
     type: "website",
+    images: [{ url: "/hero-stadium.png", width: 1200, height: 630, alt: "D-One Arena esports stadium" }],
   },
+  twitter: { card: "summary_large_image", title: "D-One Arena", description: "Enter the arena. Play, compete, become champion.", images: ["/hero-stadium.png"] },
+  alternates: { canonical: "/" },
+  icons: { icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/icon-light-32x32.png", sizes: "32x32", media: "(prefers-color-scheme: dark)" }], apple: "/apple-icon.png" },
+  manifest: "/manifest.webmanifest",
 };
 export const viewport: Viewport = {
   colorScheme: "dark",
