@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useConvex, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Clock3,
   Radio,
+  MessagesSquare,
   Shield,
   Trophy,
   Users,
@@ -40,6 +41,8 @@ const tabs = [
   "Broadcast",
   "Rules",
 ] as const;
+const VALORANT_DISCORD_URL = "https://discord.gg/6NuSvEgbBG";
+
 function getRegistrationGroupUrl(url?: string | null) {
   const trimmed = url?.trim() ?? "";
   try {
@@ -123,6 +126,7 @@ export function TournamentDetail({
   );
   const { isAuthenticated } = useConvexAuth();
   const profile = useQuery(api.users.getProfile, isAuthenticated ? {} : "skip");
+  const convex = useConvex();
   const register = useMutation(api.arena.register);
   const quickRegister = useMutation(api.arena.quickRegister);
   const withdrawRegistration = useMutation(api.arena.withdrawRegistration);
@@ -258,6 +262,8 @@ export function TournamentDetail({
     if (!tournamentId) return;
     setError("");
     const form = new FormData(event.currentTarget);
+    const whatsappWindow = game.id === "valorant" ? window.open("about:blank", "_blank") : null;
+    if (whatsappWindow) whatsappWindow.opener = null;
     try {
       const roster = game.id === "valorant" ? valorantRosterFromForm(form) : undefined;
       const captainName = roster?.[0].displayName;
@@ -284,7 +290,18 @@ export function TournamentDetail({
       });
       setSubmitted(true);
       setRegisterCountry("");
+      if (game.id === "valorant") {
+        try {
+          const confirmedTournament = await convex.query(api.tournaments.getById, { id: tournamentId });
+          const whatsappUrl = getRegistrationGroupUrl(confirmedTournament?.registrationGroupUrl);
+          if (whatsappWindow && whatsappUrl) whatsappWindow.location.replace(whatsappUrl);
+          else whatsappWindow?.close();
+        } catch {
+          whatsappWindow?.close();
+        }
+      }
     } catch (cause) {
+      whatsappWindow?.close();
       if (cause instanceof ConvexError) {
         setError(typeof cause.data === "string" ? cause.data : "Registration failed.");
       } else {
@@ -368,6 +385,16 @@ export function TournamentDetail({
                 Open WhatsApp Group
                 <ArrowRight className="size-4" />
               </a>
+              {game.id === "valorant" && <a
+                href={VALORANT_DISCORD_URL}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(buttonVariants({ size: "lg" }), "gap-2 border-none bg-[#5865F2] font-bold text-white shadow-md shadow-[#5865F2]/20 hover:bg-[#4752C4]")}
+              >
+                <MessagesSquare className="size-4" />
+                Open Discord
+                <ArrowRight className="size-4" />
+              </a>}
             </div>
           ) : registrationAvailable ? (
             isAuthenticated ? (
@@ -743,23 +770,27 @@ export function TournamentDetail({
                 <div className="mt-5 rounded-2xl border border-border bg-background/90 p-4 text-left text-sm text-muted-foreground">
                   <p className="font-semibold text-white flex items-center gap-2 text-sm sm:text-base">
                     <span className="inline-block size-2.5 rounded-full bg-[#25D366] animate-pulse" />
-                    Next Step: Join Tournament WhatsApp Group
+                    Next Step: Join Tournament Communities
                   </p>
                   <ol className="mt-3 space-y-2.5 text-xs sm:text-sm">
                     <li className="flex items-start gap-2">
                       <span className="font-bold text-[#25D366]">1.</span>
                       <span><strong className="text-white">Join the WhatsApp group</strong> now for match check-in, fixtures, and announcements.</span>
                     </li>
+                    {game.id === "valorant" && <li className="flex items-start gap-2">
+                      <span className="font-bold text-[#5865F2]">2.</span>
+                      <span><strong className="text-white">Join the Discord server</strong> for VALORANT team coordination and community updates.</span>
+                    </li>}
                     <li className="flex items-start gap-2">
-                      <span className="font-bold text-[#25D366]">2.</span>
+                      <span className="font-bold text-[#25D366]">{game.id === "valorant" ? "3." : "2."}</span>
                       <span>Check in at least 15 minutes before your match.</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="font-bold text-[#25D366]">3.</span>
+                      <span className="font-bold text-[#25D366]">{game.id === "valorant" ? "4." : "3."}</span>
                       <span>Play the published fixture and keep result screenshot.</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="font-bold text-[#25D366]">4.</span>
+                      <span className="font-bold text-[#25D366]">{game.id === "valorant" ? "5." : "4."}</span>
                       <span>Report your score; qualified players advance automatically.</span>
                     </li>
                   </ol>
@@ -769,19 +800,28 @@ export function TournamentDetail({
                     </p>
                   )}
                 </div>
-                <a
-                  className={cn(
-                    buttonVariants({ size: "lg" }),
-                    "mt-5 w-full gap-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold text-base shadow-lg shadow-[#25D366]/25 border-none h-12",
-                  )}
-                  href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <WhatsAppIcon className="size-5 shrink-0" />
-                  Join WhatsApp Group
-                  <ArrowRight className="size-4 shrink-0" />
-                </a>
+                <div className={cn("mt-5 grid gap-3", game.id === "valorant" && "sm:grid-cols-2")}>
+                  <a
+                    className={cn(buttonVariants({ size: "lg" }), "w-full gap-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold text-base shadow-lg shadow-[#25D366]/25 border-none h-12")}
+                    href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <WhatsAppIcon className="size-5 shrink-0" />
+                    Open WhatsApp
+                    <ArrowRight className="size-4 shrink-0" />
+                  </a>
+                  {game.id === "valorant" && <a
+                    className={cn(buttonVariants({ size: "lg" }), "w-full gap-2.5 border-none bg-[#5865F2] font-bold text-base text-white shadow-lg shadow-[#5865F2]/25 hover:bg-[#4752C4] h-12")}
+                    href={VALORANT_DISCORD_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <MessagesSquare className="size-5 shrink-0" />
+                    Open Discord
+                    <ArrowRight className="size-4 shrink-0" />
+                  </a>}
+                </div>
                 <Button
                   type="button"
                   variant="ghost"
