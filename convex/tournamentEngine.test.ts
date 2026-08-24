@@ -70,6 +70,20 @@ describe("game-aware tournament engine", () => {
     await t.mutation(api.tournaments.update, { id: first.tournamentId, name: "Secure Updated" });
   });
 
+  test("organizers can save an unchanged false featured setting on legacy tournaments", async () => {
+    const organizer = authenticatedTest();
+    const tournamentId = await createTournament(organizer, "efootball", "League");
+    await organizer.mutation(api.tournaments.update, {
+      id: tournamentId,
+      name: "Legacy settings saved",
+      featured: false,
+    });
+    expect(await organizer.query(api.tournaments.getOwnedById, { id: tournamentId })).toMatchObject({
+      name: "Legacy settings saved",
+      featured: false,
+    });
+  });
+
   test("registration contact data is isolated by Clerk user while standings stay public", async () => {
     const base = convexTest(schema, modules);
     const organizer = base.withIdentity(organizerIdentity);
@@ -259,6 +273,30 @@ describe("game-aware tournament engine", () => {
     expect(participants[0]).toMatchObject({ name: "Public Five", kind: "team", captain: "Public Captain" });
     expect(participants[0].roster).toHaveLength(5);
     expect(participants[0].roster[0]).toMatchObject({ valorantId: "PublicCap#CPT" });
+  });
+
+  test("participant import history is authenticated, game-scoped, and bounded", async () => {
+    const base = convexTest(schema, modules);
+    const organizer = base.withIdentity(organizerIdentity);
+    const efootballTournament = await createTournament(organizer, "efootball", "League");
+    const valorantTournament = await createTournament(organizer, "valorant", "League");
+    await organizer.mutation(api.participants.create, {
+      tournamentId: efootballTournament,
+      name: "Historical Striker",
+      gameId: "efootball",
+    });
+    await organizer.mutation(api.participants.create, {
+      tournamentId: valorantTournament,
+      name: "Historical Squad",
+      gameId: "valorant",
+      captain: "History Captain",
+      roster: valorantRoster("History"),
+    });
+
+    const history = await organizer.query(api.participants.getAllUnique, { tournamentId: efootballTournament });
+    expect(history.map((participant) => participant.name)).toContain("Historical Striker");
+    expect(history.map((participant) => participant.name)).not.toContain("Historical Squad");
+    await expect(base.query(api.participants.getAllUnique, { tournamentId: efootballTournament })).rejects.toThrow("sign in");
   });
 
   test("VALORANT registration accepts five or seven identified players and rejects incomplete Riot IDs", async () => {

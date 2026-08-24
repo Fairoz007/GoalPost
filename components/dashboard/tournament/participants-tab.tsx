@@ -13,12 +13,13 @@ import { api } from "@/convex/_generated/api";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ParticipantsTabProps {
+  tournamentId: Id<"tournaments">;
   participants: any[];
   onAddParticipant: (name: string, flag: string) => void;
   onRemoveParticipant?: (id: Id<"participants">) => void;
 }
 
-export function ParticipantsTab({ participants, onAddParticipant, onRemoveParticipant }: ParticipantsTabProps) {
+export function ParticipantsTab({ tournamentId, participants, onAddParticipant, onRemoveParticipant }: ParticipantsTabProps) {
   const [newName, setNewName] = useState("");
   const [newFlag, setNewFlag] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -31,7 +32,7 @@ export function ParticipantsTab({ participants, onAddParticipant, onRemovePartic
     setNewFlag("");
   };
 
-  const historicalParticipants = useQuery(api.participants.getAllUnique) || [];
+  const historicalParticipants = useQuery(api.participants.getAllUnique, { tournamentId }) || [];
   
   const handleSelectHistorical = (participantId: string | null) => {
     if (!participantId) return;

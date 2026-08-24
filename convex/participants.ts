@@ -189,14 +189,33 @@ export const getByTournament = query({
 });
 
 export const getAllUnique = query({
-  args: {},
+  args: { tournamentId: v.id("tournaments") },
   returns: v.array(v.any()),
-  handler: async (ctx) => {
-    const rows = await ctx.db.query("participants").take(500);
+  handler: async (ctx, args) => {
+    const tournament = await requireTournamentAdmin(ctx, args.tournamentId);
+    const selectedGame = tournament.gameId ?? "efootball";
+    const currentGameRows = await ctx.db
+      .query("participants")
+      .withIndex("by_gameId", (q) => q.eq("gameId", selectedGame))
+      .order("desc")
+      .take(128);
+    const legacyEfootballRows = selectedGame === "efootball"
+      ? await ctx.db
+        .query("participants")
+        .withIndex("by_gameId", (q) => q.eq("gameId", undefined))
+        .order("desc")
+        .take(64)
+      : [];
+    const rows = [...currentGameRows, ...legacyEfootballRows]
+      .sort((left, right) => right._creationTime - left._creationTime);
     const tournamentIds = [...new Set(rows.map((participant) => participant.tournamentId))];
     const tournaments = await Promise.all(tournamentIds.map((id) => ctx.db.get("tournaments", id)));
     const visibleIds = new Set(tournaments.filter((tournament) => tournament?.status !== "Draft").map((tournament) => tournament!._id));
-    const unique = [...new Map(rows.filter((participant) => visibleIds.has(participant.tournamentId)).map((participant) => [`${participant.gameId ?? "efootball"}:${participant.name.toLowerCase()}`, participant])).values()];
+    const unique = [...new Map(rows
+      .filter((participant) => visibleIds.has(participant.tournamentId))
+      .map((participant) => [participant.name.trim().toLowerCase(), participant]))
+      .values()]
+      .slice(0, 50);
     return await Promise.all(unique.map(async (participant) => {
       const { userId: _userId, ...publicParticipant } = participant;
       return {

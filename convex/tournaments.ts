@@ -179,7 +179,7 @@ export const update = mutation({
     if (selectedGame === "efootball" && args.matchMode) throw new Error("VALORANT match modes cannot be used for eFootball tournaments.");
     validateSlots(args.maxSlots);
     validateBestOf(args.bestOf);
-    if (args.featured !== undefined && args.featured !== tournament.featured) await requirePlatformAdmin(ctx);
+    if (args.featured !== undefined && args.featured !== (tournament.featured === true)) await requirePlatformAdmin(ctx);
     if (args.status === "Completed" && tournament.status !== "Completed") {
       const champion = await ctx.db.query("champions").withIndex("by_tournamentId", (q) => q.eq("tournamentId", id)).unique();
       if (!champion) throw new Error("A tournament can only be completed after a champion is recorded.");

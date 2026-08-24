@@ -42,7 +42,7 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
 }) {
   const isValorant = gameId === 'valorant'
   const currentRole = useQuery(api.platformAdmin.currentRole)
-  const history = useQuery(api.participants.getAllUnique) as Competitor[] | undefined
+  const history = useQuery(api.participants.getAllUnique, { tournamentId }) as Competitor[] | undefined
   const directory = useQuery(api.users.listDirectory, currentRole === 'platform_admin' ? { tournamentId } : 'skip') as DirectoryUser[] | undefined
   const invitations = useQuery(api.invitations.listForTournament, { tournamentId })
   const createInvitation = useMutation(api.invitations.create)
