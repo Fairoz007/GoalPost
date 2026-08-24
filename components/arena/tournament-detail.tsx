@@ -294,7 +294,8 @@ export function TournamentDetail({
         try {
           const confirmedTournament = await convex.query(api.tournaments.getById, { id: tournamentId });
           const whatsappUrl = getRegistrationGroupUrl(confirmedTournament?.registrationGroupUrl);
-          if (whatsappWindow && whatsappUrl) whatsappWindow.location.replace(whatsappUrl);
+          if (whatsappUrl && whatsappWindow) whatsappWindow.location.replace(whatsappUrl);
+          else if (whatsappUrl) window.open(whatsappUrl, "_blank", "noopener,noreferrer");
           else whatsappWindow?.close();
         } catch {
           whatsappWindow?.close();
@@ -767,6 +768,7 @@ export function TournamentDetail({
                     ? "Your place was confirmed automatically and added to the participant list."
                     : "Your player entry is already confirmed on the participant list."}
                 </p>
+                {submitted && game.id === "valorant" && <p className="mt-2 text-xs text-[#25D366]">WhatsApp opens automatically. Your Discord invitation is available below.</p>}
                 <div className="mt-5 rounded-2xl border border-border bg-background/90 p-4 text-left text-sm text-muted-foreground">
                   <p className="font-semibold text-white flex items-center gap-2 text-sm sm:text-base">
                     <span className="inline-block size-2.5 rounded-full bg-[#25D366] animate-pulse" />
@@ -1156,23 +1158,33 @@ function RegistrationSection({
               <p className="font-semibold text-white">Next Steps for Match Day:</p>
               <ol className="space-y-2 text-xs sm:text-sm">
                 <li>1. Join the tournament WhatsApp group for live scheduling, fixtures, and announcements.</li>
-                <li>2. Check in at least 15 minutes before your scheduled fixture.</li>
-                <li>3. Play your match and submit screenshot evidence.</li>
+                {game.id === "valorant" && <li>2. Join the VALORANT Discord server for team coordination and community updates.</li>}
+                <li>{game.id === "valorant" ? "3." : "2."} Check in at least 15 minutes before your scheduled fixture.</li>
+                <li>{game.id === "valorant" ? "4." : "3."} Play your match and submit screenshot evidence.</li>
               </ol>
             </div>
-            <a
-              href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
-              target="_blank"
-              rel="noreferrer"
-              className={cn(
-                buttonVariants({ size: "lg" }),
-                "mt-6 w-full sm:w-auto gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold border-none shadow-md shadow-[#25D366]/20",
-              )}
-            >
-              <WhatsAppIcon className="size-5 shrink-0" />
-              Open WhatsApp Group
-              <ArrowRight className="size-4 shrink-0" />
-            </a>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <a
+                href={getRegistrationGroupUrl(tournament.registrationGroupUrl)}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(buttonVariants({ size: "lg" }), "w-full gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-black font-bold border-none shadow-md shadow-[#25D366]/20 sm:w-auto")}
+              >
+                <WhatsAppIcon className="size-5 shrink-0" />
+                Open WhatsApp Group
+                <ArrowRight className="size-4 shrink-0" />
+              </a>
+              {game.id === "valorant" && <a
+                href={VALORANT_DISCORD_URL}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(buttonVariants({ size: "lg" }), "w-full gap-2 border-none bg-[#5865F2] font-bold text-white shadow-md shadow-[#5865F2]/20 hover:bg-[#4752C4] sm:w-auto")}
+              >
+                <MessagesSquare className="size-5 shrink-0" />
+                Open Discord
+                <ArrowRight className="size-4 shrink-0" />
+              </a>}
+            </div>
             {onWithdraw && <Button type="button" variant="outline" className="mt-3 w-full sm:w-auto" onClick={onWithdraw} disabled={withdrawing}>{withdrawing ? "Withdrawing…" : "Withdraw registration"}</Button>}
             {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
           </div>
