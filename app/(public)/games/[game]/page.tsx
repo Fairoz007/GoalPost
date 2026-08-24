@@ -44,7 +44,7 @@ export default function GamePage() {
           </div>
           <aside className="rounded-2xl border border-border bg-card p-6">
             <Users className="size-6 text-primary" /><h2 className="mt-5 font-display text-2xl font-bold uppercase">Competition rules</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Competitor: {gameModule?.competitorKind ?? visual.competitorLabel}<br />Roster size: {gameModule?.teamSize ?? visual.teamSize}<br />Default series: Best of {gameModule?.defaultBestOf ?? 1}<br />Score: {gameModule?.scoreLabel ?? "Goals"}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Competitor: {gameModule?.competitorKind ?? visual.competitorLabel}<br />Roster size: {gameModule?.teamSize ?? visual.teamSize}<br />Default series: Best of {gameModule?.defaultBestOf ?? visual.defaultBestOf}<br />Score: {gameModule?.scoreLabel ?? visual.scoreLabel}</p>
             <h3 className="mt-7 text-xs font-bold uppercase tracking-wider text-muted-foreground">Supported formats</h3>
             <ul className="mt-3 space-y-2 text-sm">{(gameModule?.formats ?? visual.formats).map((format) => <li key={format} className="border-b border-border pb-2">{format}</li>)}</ul>
             <h3 className="mt-7 text-xs font-bold uppercase tracking-wider text-muted-foreground">Tracked statistics</h3>
