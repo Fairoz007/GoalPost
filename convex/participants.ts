@@ -7,10 +7,11 @@ import { requireTournamentAdmin } from "./tournamentAuth";
 import { requireIdentity } from "./model/auth";
 import { requireVisibleTournament } from "./model/tournamentAccess";
 import { adjustPlatformStats } from "./model/platformStats";
-import { cleanRequired } from "./model/validation";
+import { cleanRequired, cleanValorantRoster } from "./model/validation";
 
 const rosterMember = v.object({
   displayName: v.string(),
+  valorantId: v.optional(v.string()),
   role: v.union(v.literal("captain"), v.literal("player"), v.literal("coach"), v.literal("substitute")),
   countryCode: v.optional(v.string()),
 });
@@ -33,7 +34,7 @@ type CompetitorInput = {
   valorantId?: string;
   captain?: string;
   seed?: number;
-  roster?: Array<{ displayName: string; role: "captain" | "player" | "coach" | "substitute"; countryCode?: string }>;
+  roster?: Array<{ displayName: string; valorantId?: string; role: "captain" | "player" | "coach" | "substitute"; countryCode?: string }>;
 };
 
 export function competitorRankingKey(participant: Doc<"participants">) {
@@ -86,6 +87,7 @@ export async function insertCompetitor(ctx: MutationCtx, args: CompetitorInput) 
   }
 
   let teamId = args.teamId;
+  let cleanedRoster = args.roster;
   if (teamId) {
     const [identity, team] = await Promise.all([requireIdentity(ctx), ctx.db.get("teams", teamId)]);
     if (!team || team.ownerToken !== identity.tokenIdentifier) {
@@ -94,11 +96,8 @@ export async function insertCompetitor(ctx: MutationCtx, args: CompetitorInput) 
   }
   if (selectedGame === "valorant" && !teamId) {
     const identity = await requireIdentity(ctx);
-    const roster = args.roster ?? [];
-    const starters = roster.filter((member) => member.role === "captain" || member.role === "player");
-    if (starters.length !== rules.teamSize) throw new ConvexError(`VALORANT teams require exactly ${rules.teamSize} starting players.`);
-    if (roster.length > 8) throw new ConvexError("A VALORANT roster can contain at most 8 members including substitutes and coach.");
-    const captain = args.captain ?? roster.find((member) => member.role === "captain")?.displayName;
+    cleanedRoster = cleanValorantRoster(args.roster ?? [], rules.teamSize);
+    const captain = args.captain ?? cleanedRoster.find((member) => member.role === "captain")?.displayName;
     if (!captain) throw new ConvexError("A VALORANT team captain is required.");
     const baseSlug = (args.slug || args.name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
     const existing = await ctx.db.query("teams").withIndex("by_slug", (q) => q.eq("slug", baseSlug)).unique();
@@ -113,14 +112,17 @@ export async function insertCompetitor(ctx: MutationCtx, args: CompetitorInput) 
       captainName: captain,
       createdAt: Date.now(),
     });
-    for (const member of roster) await ctx.db.insert("teamMembers", { teamId, ...member });
+    for (const member of cleanedRoster) await ctx.db.insert("teamMembers", { teamId, ...member });
   }
 
   if (selectedGame === "valorant" && teamId) {
     const members = await ctx.db.query("teamMembers").withIndex("by_teamId", (q) => q.eq("teamId", teamId)).take(16);
-    const starters = members.filter((member) => member.role === "captain" || member.role === "player");
-    if (starters.length !== rules.teamSize) throw new ConvexError(`VALORANT teams require exactly ${rules.teamSize} starting players.`);
+    cleanValorantRoster(members, rules.teamSize);
   }
+
+  const captainValorantId = selectedGame === "valorant"
+    ? cleanedRoster?.find((member) => member.role === "captain")?.valorantId
+    : undefined;
 
   const participantId = await ctx.db.insert("participants", {
     userId: args.userId,
@@ -137,7 +139,7 @@ export async function insertCompetitor(ctx: MutationCtx, args: CompetitorInput) 
     flag: args.flag,
     efootballId: args.efootballId,
     konamiId: args.konamiId,
-    valorantId: args.valorantId,
+    valorantId: args.valorantId?.trim() || captainValorantId,
     captain: args.captain,
     seed: args.seed,
     registrationStatus: "approved",

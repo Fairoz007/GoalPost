@@ -12,6 +12,7 @@ const publicUser = v.object({
 
 const rosterMemberValidator = v.object({
   displayName: v.string(),
+  valorantId: v.optional(v.string()),
   role: v.union(v.literal("captain"), v.literal("player"), v.literal("coach"), v.literal("substitute")),
   countryCode: v.optional(v.string()),
 });

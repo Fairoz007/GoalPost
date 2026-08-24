@@ -46,3 +46,48 @@ export function validateTimeZone(value: string | undefined) {
   catch { throw new ConvexError("Choose a valid IANA timezone, such as Asia/Muscat."); }
   return timezone;
 }
+
+export type ValorantRosterMember = {
+  displayName: string;
+  valorantId?: string;
+  role: "captain" | "player" | "substitute" | "coach";
+  countryCode?: string;
+};
+
+function cleanValorantId(value: string | undefined, playerLabel: string) {
+  const riotId = value?.trim();
+  if (!riotId) throw new ConvexError(`${playerLabel} needs a VALORANT Riot ID in the format GameName#Tag.`);
+  const parts = riotId.split("#");
+  if (parts.length !== 2 || !parts[0].trim() || !parts[1].trim() || riotId.length > 40) {
+    throw new ConvexError(`${playerLabel} needs a valid VALORANT Riot ID in the format GameName#Tag.`);
+  }
+  return `${parts[0].trim()}#${parts[1].trim()}`;
+}
+
+export function cleanValorantRoster(roster: ValorantRosterMember[], starterCount = 5) {
+  if (roster.some((member) => member.role === "coach")) {
+    throw new ConvexError("Coaches are not player slots. Register five starters, with two substitutes if needed.");
+  }
+  const starters = roster.filter((member) => member.role === "captain" || member.role === "player");
+  const substitutes = roster.filter((member) => member.role === "substitute");
+  if (starters.length !== starterCount || (substitutes.length !== 0 && substitutes.length !== 2) || roster.length !== starters.length + substitutes.length) {
+    throw new ConvexError(`A VALORANT roster must contain exactly ${starterCount} starting players, or ${starterCount + 2} players including two substitutes.`);
+  }
+  if (starters.filter((member) => member.role === "captain").length !== 1) {
+    throw new ConvexError("A VALORANT roster must have exactly one captain.");
+  }
+  const cleaned = roster.map((member, index) => {
+    const displayName = cleanRequired(member.displayName, `Player ${index + 1} name`, 80);
+    return {
+      ...member,
+      displayName,
+      valorantId: cleanValorantId(member.valorantId, displayName),
+      countryCode: member.countryCode?.trim().toUpperCase() || undefined,
+    };
+  });
+  const names = cleaned.map((member) => member.displayName.toLowerCase());
+  if (new Set(names).size !== names.length) throw new ConvexError("Every VALORANT roster player needs a unique name.");
+  const riotIds = cleaned.map((member) => member.valorantId.toLowerCase());
+  if (new Set(riotIds).size !== riotIds.length) throw new ConvexError("Every VALORANT roster player needs a unique Riot ID.");
+  return cleaned;
+}

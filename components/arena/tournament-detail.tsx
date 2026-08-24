@@ -65,6 +65,31 @@ function countryName(countryCode: string) {
   return COUNTRY_OPTIONS.find((country) => country.code === countryCode)?.name ?? "";
 }
 
+type ValorantRosterInput = {
+  displayName: string;
+  valorantId: string;
+  role: "captain" | "player" | "substitute";
+};
+
+function valorantRosterFromForm(form: FormData): ValorantRosterInput[] {
+  const starters = [1, 2, 3, 4, 5].map((number) => ({
+    displayName: String(form.get(`valorantName${number}`) || "").trim(),
+    valorantId: String(form.get(`valorantId${number}`) || "").trim(),
+    role: number === 1 ? "captain" as const : "player" as const,
+  }));
+  const substitutes = [6, 7].map((number) => ({
+    displayName: String(form.get(`valorantName${number}`) || "").trim(),
+    valorantId: String(form.get(`valorantId${number}`) || "").trim(),
+    role: "substitute" as const,
+  }));
+  const substituteValues = substitutes.flatMap((member) => [member.displayName, member.valorantId]);
+  const hasAnySubstituteValue = substituteValues.some(Boolean);
+  if (hasAnySubstituteValue && substituteValues.some((value) => !value)) {
+    throw new Error("Add both substitute names and Riot IDs, or leave all substitute fields empty.");
+  }
+  return hasAnySubstituteValue ? [...starters, ...substitutes] : starters;
+}
+
 export function TournamentDetail({
   id,
   slug,
@@ -234,18 +259,8 @@ export function TournamentDetail({
     setError("");
     const form = new FormData(event.currentTarget);
     try {
-      const captainName =
-        game.id === "valorant" ? String(form.get("captain")) : undefined;
-      const roster =
-        game.id === "valorant"
-          ? [
-            { displayName: captainName!, role: "captain" as const },
-            ...[2, 3, 4, 5].map((number) => ({
-              displayName: String(form.get(`player${number}`)),
-              role: "player" as const,
-            })),
-          ]
-          : undefined;
+      const roster = game.id === "valorant" ? valorantRosterFromForm(form) : undefined;
+      const captainName = roster?.[0].displayName;
       const rawGameId = String(form.get("gameIdInput") || "").trim();
       await register({
         tournamentId,
@@ -262,7 +277,7 @@ export function TournamentDetail({
             : undefined,
         countryCode: String(form.get("country") || "") || undefined,
         efootballId: game.id === "efootball" ? rawGameId || undefined : undefined,
-        valorantId: game.id === "valorant" ? rawGameId || undefined : undefined,
+        valorantId: game.id === "valorant" ? roster?.[0].valorantId : undefined,
         acceptedRules: form.get("acceptedRules") === "on",
         captainName,
         roster,
@@ -641,7 +656,7 @@ export function TournamentDetail({
                             key={member._id}
                             className="rounded-md bg-muted px-2 py-1 text-xs"
                           >
-                            {member.displayName} · {member.role}
+                            {member.displayName}{member.valorantId ? ` · ${member.valorantId}` : ""} · {member.role}
                           </span>
                         ))}
                       </div>
@@ -921,14 +936,13 @@ export function TournamentDetail({
                     <SelectContent>{COUNTRY_OPTIONS.map((country) => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}</SelectContent>
                   </Select>
 
-                  {/* Optional Game ID field */}
-                  <div>
+                  {game.id === "efootball" && <div>
                     <Input
                       name="gameIdInput"
-                      defaultValue={game.id === "efootball" ? profile?.efootballId || "" : profile?.valorantId || ""}
-                      placeholder={game.id === "efootball" ? "eFootball ID / Konami Name (Optional)" : "VALORANT Riot ID & Tag (Optional)"}
+                      defaultValue={profile?.efootballId || ""}
+                      placeholder="eFootball ID / Konami Name (Optional)"
                     />
-                  </div>
+                  </div>}
 
                   {game.id === "efootball" && (
                     <div className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
@@ -973,22 +987,26 @@ export function TournamentDetail({
                   {game.id === "valorant" && (
                     <div className="space-y-3 rounded-xl border border-border bg-background p-4">
                       <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                        5-player starting roster
+                        Five or seven-player roster
                       </p>
-                      <Input
-                        name="captain"
-                        defaultValue={profile?.captainName || profile?.gamerTag || profile?.name || ""}
-                        placeholder="Captain / player 1"
-                        required
-                      />
-                      {[2, 3, 4, 5].map((number) => (
-                        <Input
-                          key={number}
-                          name={`player${number}`}
-                          placeholder={`Starting player ${number}`}
-                          required
-                        />
+                      <p className="text-xs leading-5 text-muted-foreground">Add five starters. You may also add exactly two substitutes. Every player needs their in-game name and Riot ID.</p>
+                      {[1, 2, 3, 4, 5].map((number) => (
+                        <div key={number} className="grid gap-2 sm:grid-cols-2">
+                          <Input name={`valorantName${number}`} defaultValue={number === 1 ? profile?.captainName || profile?.gamerTag || profile?.name || "" : ""} placeholder={number === 1 ? "Captain / player 1 name" : `Starting player ${number} name`} required />
+                          <Input name={`valorantId${number}`} defaultValue={number === 1 ? profile?.valorantId || "" : ""} placeholder="Riot ID, e.g. Player#EUW" pattern="[^#]+#[^#]+" title="Use the Riot ID format GameName#Tag." maxLength={40} required />
+                        </div>
                       ))}
+                      <div className="border-t border-border pt-3">
+                        <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Optional — add both substitutes for a seven-player roster</p>
+                        <div className="space-y-2">
+                          {[6, 7].map((number) => (
+                            <div key={number} className="grid gap-2 sm:grid-cols-2">
+                              <Input name={`valorantName${number}`} placeholder={`Substitute ${number - 5} name`} />
+                              <Input name={`valorantId${number}`} placeholder="Riot ID, e.g. Player#EUW" pattern="[^#]+#[^#]+" title="Use the Riot ID format GameName#Tag." maxLength={40} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   )}
                   {tournament.registrationInstructions && (

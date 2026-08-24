@@ -53,6 +53,7 @@ export default defineSchema({
       v.array(
         v.object({
           displayName: v.string(),
+          valorantId: v.optional(v.string()),
           role: v.union(v.literal("captain"), v.literal("player"), v.literal("coach"), v.literal("substitute")),
           countryCode: v.optional(v.string()),
         }),
@@ -152,6 +153,7 @@ export default defineSchema({
   teamMembers: defineTable({
     teamId: v.id("teams"),
     displayName: v.string(),
+    valorantId: v.optional(v.string()),
     username: v.optional(v.string()),
     role: v.union(v.literal("captain"), v.literal("player"), v.literal("coach"), v.literal("substitute")),
     countryCode: v.optional(v.string()),
@@ -253,6 +255,7 @@ export default defineSchema({
   registrationRoster: defineTable({
     registrationId: v.id("registrations"),
     displayName: v.string(),
+    valorantId: v.optional(v.string()),
     role: v.union(v.literal("captain"), v.literal("player"), v.literal("substitute"), v.literal("coach")),
   }).index("by_registrationId", ["registrationId"]),
 

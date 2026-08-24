@@ -7,7 +7,7 @@ import { requireTournamentAdmin } from "./tournamentAuth";
 import { requireIdentity } from "./model/auth";
 import { normalizeWhatsAppNumber } from "./model/contact";
 import { requireVisibleTournament } from "./model/tournamentAccess";
-import { cleanRequired } from "./model/validation";
+import { cleanRequired, cleanValorantRoster } from "./model/validation";
 import { adjustPlatformStats } from "./model/platformStats";
 
 export const listRankings = query({
@@ -102,6 +102,7 @@ export const register = mutation({
     captainName: v.optional(v.string()),
     roster: v.optional(v.array(v.object({
       displayName: v.string(),
+      valorantId: v.optional(v.string()),
       role: v.union(v.literal("captain"), v.literal("player"), v.literal("substitute"), v.literal("coach")),
       countryCode: v.optional(v.string()),
     }))),
@@ -146,11 +147,12 @@ export const register = mutation({
     if (priorRegistration && priorRegistration.status !== "rejected") {
       throw new ConvexError("You are already registered for this tournament.");
     }
-    const roster = args.roster ?? currentUser?.defaultRoster ?? [];
+    let roster = args.roster ?? currentUser?.defaultRoster ?? [];
+    let valorantId = args.valorantId?.trim();
     if (selectedGame === "valorant") {
-      const starters = roster.filter((member) => member.role === "captain" || member.role === "player");
-      if (starters.length !== rules.teamSize) throw new ConvexError(`VALORANT registration requires exactly ${rules.teamSize} starting players.`);
+      roster = cleanValorantRoster(roster, rules.teamSize);
       if (!args.captainName || !roster.some((member) => member.role === "captain" && member.displayName === args.captainName)) throw new ConvexError("The captain must be included in the roster.");
+      valorantId = roster.find((member) => member.role === "captain")?.valorantId;
     }
     const registrationId = await ctx.db.insert("registrations", {
       userId: currentUser?._id,
@@ -161,7 +163,7 @@ export const register = mutation({
       phoneNumber,
       efootballId: legacyEfootballId,
       konamiId,
-      valorantId: args.valorantId?.trim(),
+      valorantId,
       playerRating: args.playerRating,
       teamId: args.teamId,
       countryCode,
@@ -181,7 +183,7 @@ export const register = mutation({
       countryCode,
       efootballId: legacyEfootballId,
       konamiId,
-      valorantId: args.valorantId?.trim(),
+      valorantId,
       captain: args.captainName,
       teamId: args.teamId,
       roster,
@@ -214,6 +216,7 @@ export const quickRegister = mutation({
     captainName: v.optional(v.string()),
     roster: v.optional(v.array(v.object({
       displayName: v.string(),
+      valorantId: v.optional(v.string()),
       role: v.union(v.literal("captain"), v.literal("player"), v.literal("substitute"), v.literal("coach")),
       countryCode: v.optional(v.string()),
     }))),
@@ -239,7 +242,7 @@ export const quickRegister = mutation({
     const countryCode = (args.countryCode || currentUser?.countryCode || "").trim().toUpperCase();
     const efootballId = (args.efootballId || currentUser?.efootballId || "").trim();
     const konamiId = (args.konamiId || efootballId).trim();
-    const valorantId = (args.valorantId || currentUser?.valorantId || "").trim();
+    let valorantId = (args.valorantId || currentUser?.valorantId || "").trim();
 
     if (currentUser) {
       const profilePatch: Record<string, any> = {};
@@ -276,14 +279,15 @@ export const quickRegister = mutation({
     }
 
     const rules = rulesFor(selectedGame);
-    const roster = args.roster ?? currentUser?.defaultRoster ?? [];
+    let roster = args.roster ?? currentUser?.defaultRoster ?? [];
     let captainName = args.captainName ?? currentUser?.captainName ?? (selectedGame === "valorant" ? applicantName : undefined);
 
     if (selectedGame === "valorant") {
       if (!roster.length) throw new ConvexError("Add the complete VALORANT roster before registering.");
-      const starters = roster.filter((member) => member.role === "captain" || member.role === "player");
-      if (starters.length !== rules.teamSize) throw new ConvexError(`VALORANT registration requires exactly ${rules.teamSize} starting players.`);
-      if (!captainName) captainName = roster.find((m) => m.role === "captain")?.displayName || applicantName;
+      roster = cleanValorantRoster(roster, rules.teamSize);
+      const rosterCaptain = roster.find((member) => member.role === "captain");
+      captainName = rosterCaptain?.displayName || captainName || applicantName;
+      valorantId = rosterCaptain?.valorantId ?? valorantId;
     }
 
     const registrationId = await ctx.db.insert("registrations", {
@@ -357,7 +361,7 @@ export const reviewRegistration = mutation({
       countryCode: registration.countryCode,
       captain: registration.captainName,
       teamId: registration.teamId,
-      roster: roster.map((member) => ({ displayName: member.displayName, role: member.role })),
+      roster: roster.map((member) => ({ displayName: member.displayName, valorantId: member.valorantId, role: member.role })),
     });
     await ctx.db.patch(registration._id, { status: "approved", participantId });
     return participantId;

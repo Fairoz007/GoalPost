@@ -40,7 +40,7 @@ type Registration = {
   countryCode?: string;
   status: "pending" | "approved" | "rejected";
   createdAt: number;
-  roster: Array<{ _id: string; displayName: string; role: string }>;
+  roster: Array<{ _id: string; displayName: string; valorantId?: string; role: string }>;
 };
 
 function whatsAppHref(phoneNumber?: string) {
@@ -70,6 +70,7 @@ export default function RegistrationsPage() {
         registration.konamiId ?? registration.efootballId,
         registration.valorantId,
         registration.countryCode,
+        ...registration.roster.flatMap((member) => [member.displayName, member.valorantId]),
       ].some((value) => value?.toLowerCase().includes(term)),
     );
   }, [registrations, search]);
@@ -113,7 +114,7 @@ export default function RegistrationsPage() {
             { value: registration.playerRating, type: Number, format: "#,##0", align: "right" as const, ...cellStyle },
             { value: registration.status, type: String, align: "center" as const, ...cellStyle },
             { value: new Date(registration.createdAt), type: Date, format: "yyyy-mm-dd hh:mm", ...cellStyle },
-            { value: registration.roster.map((member) => `${member.displayName} (${member.role})`).join("; "), type: String, ...cellStyle },
+            { value: registration.roster.map((member) => `${member.displayName}${member.valorantId ? ` · ${member.valorantId}` : ""} (${member.role})`).join("; "), type: String, ...cellStyle },
           ];
         }),
       ];
@@ -169,7 +170,7 @@ export default function RegistrationsPage() {
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, email, WhatsApp, or Konami ID" className="pl-10" />
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, email, WhatsApp, Konami ID, or Riot ID" className="pl-10" />
         </div>
 
         <div className="mt-5 grid gap-3 md:hidden">
@@ -219,7 +220,7 @@ function RegistrationCard({ registration }: { registration: Registration }) {
   return (
     <article className="rounded-xl border border-border bg-background/50 p-4">
       <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate font-semibold text-white">{registration.applicantName}</p><p className="mt-1 text-xs text-muted-foreground">{registration.countryCode ?? "Country unavailable"}</p></div><Badge variant="outline" className="capitalize">{registration.status}</Badge></div>
-      <div className="mt-4 space-y-2 text-sm"><a href={`mailto:${registration.applicantEmail}`} className="flex items-center gap-2 break-all text-muted-foreground hover:text-white"><Mail className="size-4 shrink-0" />{registration.applicantEmail}</a><p className="flex items-center gap-2 font-mono"><Smartphone className="size-4 shrink-0 text-primary" />{registration.phoneNumber ?? "Legacy entry without WhatsApp"}</p>{(registration.konamiId ?? registration.efootballId) && <p className="text-muted-foreground">Konami ID: <span className="text-white">{registration.konamiId ?? registration.efootballId}</span>{registration.playerRating !== undefined && ` · Rating ${registration.playerRating}`}</p>}{registration.valorantId && <p className="text-muted-foreground">VALORANT ID: <span className="text-white">{registration.valorantId}</span></p>}</div>
+      <div className="mt-4 space-y-2 text-sm"><a href={`mailto:${registration.applicantEmail}`} className="flex items-center gap-2 break-all text-muted-foreground hover:text-white"><Mail className="size-4 shrink-0" />{registration.applicantEmail}</a><p className="flex items-center gap-2 font-mono"><Smartphone className="size-4 shrink-0 text-primary" />{registration.phoneNumber ?? "Legacy entry without WhatsApp"}</p>{(registration.konamiId ?? registration.efootballId) && <p className="text-muted-foreground">Konami ID: <span className="text-white">{registration.konamiId ?? registration.efootballId}</span>{registration.playerRating !== undefined && ` · Rating ${registration.playerRating}`}</p>}{registration.valorantId && <p className="text-muted-foreground">Captain Riot ID: <span className="text-white">{registration.valorantId}</span></p>}{registration.roster.length > 0 && <div className="rounded-lg border border-border p-3 text-xs text-muted-foreground">{registration.roster.map((member) => <p key={member._id}>{member.displayName}{member.valorantId ? ` · ${member.valorantId}` : ""} <span className="capitalize">({member.role})</span></p>)}</div>}</div>
       {whatsApp && <Button variant="outline" className="mt-4 w-full" render={<a href={whatsApp} target="_blank" rel="noreferrer" />}><MessageCircle />Open WhatsApp</Button>}
     </article>
   );

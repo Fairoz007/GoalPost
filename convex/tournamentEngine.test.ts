@@ -27,11 +27,15 @@ async function createTournament(t: ReturnType<typeof authenticatedTest>, gameId:
   return result.tournamentId;
 }
 
-function valorantRoster(prefix: string) {
-  return [
-    { displayName: `${prefix} Captain`, role: "captain" as const },
-    ...[2, 3, 4, 5].map((number) => ({ displayName: `${prefix} Player ${number}`, role: "player" as const })),
+function valorantRoster(prefix: string, includeSubstitutes = false) {
+  const idPrefix = prefix.replace(/[^a-zA-Z0-9]/g, "").slice(0, 10);
+  const starters = [
+    { displayName: `${prefix} Captain`, valorantId: `${idPrefix}Cap#CPT`, role: "captain" as const },
+    ...[2, 3, 4, 5].map((number) => ({ displayName: `${prefix} Player ${number}`, valorantId: `${idPrefix}${number}#P${number}X`, role: "player" as const })),
   ];
+  return includeSubstitutes
+    ? [...starters, ...[1, 2].map((number) => ({ displayName: `${prefix} Substitute ${number}`, valorantId: `${idPrefix}Sub${number}#S${number}X`, role: "substitute" as const }))]
+    : starters;
 }
 
 describe("game-aware tournament engine", () => {
@@ -254,6 +258,25 @@ describe("game-aware tournament engine", () => {
     const participants = await t.query(api.participants.getByTournament, { tournamentId });
     expect(participants[0]).toMatchObject({ name: "Public Five", kind: "team", captain: "Public Captain" });
     expect(participants[0].roster).toHaveLength(5);
+    expect(participants[0].roster[0]).toMatchObject({ valorantId: "PublicCap#CPT" });
+  });
+
+  test("VALORANT registration accepts five or seven identified players and rejects incomplete Riot IDs", async () => {
+    const t = authenticatedTest();
+    const fivePlayerTournament = await createTournament(t, "valorant", "League");
+    const sevenPlayerTournament = (await t.mutation(api.tournaments.create, { name: "Seven Player Valorant", slug: "seven-player-valorant", gameId: "valorant", format: "League", status: "Upcoming", startDate: "2026-08-10T10:00:00.000Z" })).tournamentId;
+    await t.mutation(api.participants.create, { tournamentId: fivePlayerTournament, name: "Five IDs", gameId: "valorant", captain: "Five Captain", roster: valorantRoster("Five") });
+    await t.mutation(api.participants.create, { tournamentId: sevenPlayerTournament, name: "Seven IDs", gameId: "valorant", captain: "Seven Captain", roster: valorantRoster("Seven", true) });
+    const [seven] = await t.query(api.participants.getByTournament, { tournamentId: sevenPlayerTournament });
+    expect(seven.roster).toHaveLength(7);
+    expect(seven.valorantId).toBe("SevenCap#CPT");
+    await expect(t.mutation(api.participants.create, {
+      tournamentId: fivePlayerTournament,
+      name: "Missing IDs",
+      gameId: "valorant",
+      captain: "Missing Captain",
+      roster: valorantRoster("Missing").map((member, index) => index === 2 ? { ...member, valorantId: undefined } : member),
+    })).rejects.toThrow("needs a VALORANT Riot ID");
   });
 
   test("public eFootball registration stores required contact details without a roster", async () => {

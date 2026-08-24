@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { COUNTRY_OPTIONS, getIsoFromFlagString } from '@/lib/countries'
 
-type RosterInput = { displayName: string; role: 'captain' | 'player' | 'substitute' | 'coach' }
+type RosterInput = { displayName: string; valorantId?: string; role: 'captain' | 'player' | 'substitute' | 'coach' }
 type RosterMember = RosterInput & { _id?: string }
 type Competitor = { _id: Id<'participants'>; name: string; gameId?: 'efootball' | 'valorant'; countryCode?: string; flag?: string; captain?: string; logoUrl?: string; checkedIn?: boolean; roster?: RosterMember[] }
 type DirectoryUser = { _id: Id<'users'>; name?: string; email?: string; imageUrl?: string; alreadyParticipant: boolean }
@@ -58,8 +58,9 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
   const [name, setName] = useState('')
   const [countryCode, setCountryCode] = useState('')
   const [captain, setCaptain] = useState('')
-  const [players, setPlayers] = useState(['', '', '', ''])
-  const [substitute, setSubstitute] = useState('')
+  const [captainValorantId, setCaptainValorantId] = useState('')
+  const [players, setPlayers] = useState(() => Array.from({ length: 4 }, () => ({ displayName: '', valorantId: '' })))
+  const [substitutes, setSubstitutes] = useState(() => Array.from({ length: 2 }, () => ({ displayName: '', valorantId: '' })))
   const [createError, setCreateError] = useState('')
 
   const historicalCompetitors = useMemo(() => {
@@ -75,10 +76,13 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
     if (!competitor) return
     setName(competitor.name)
     setCountryCode(normalizeCountry(competitor))
-    setCaptain(competitor.captain ?? competitor.roster?.find((member) => member.role === 'captain')?.displayName ?? '')
-    const starters = competitor.roster?.filter((member) => member.role === 'player').map((member) => member.displayName) ?? []
-    setPlayers([0, 1, 2, 3].map((index) => starters[index] ?? ''))
-    setSubstitute(competitor.roster?.find((member) => member.role === 'substitute')?.displayName ?? '')
+    const historicalCaptain = competitor.roster?.find((member) => member.role === 'captain')
+    setCaptain(competitor.captain ?? historicalCaptain?.displayName ?? '')
+    setCaptainValorantId(historicalCaptain?.valorantId ?? '')
+    const starters = competitor.roster?.filter((member) => member.role === 'player') ?? []
+    setPlayers([0, 1, 2, 3].map((index) => ({ displayName: starters[index]?.displayName ?? '', valorantId: starters[index]?.valorantId ?? '' })))
+    const historicalSubstitutes = competitor.roster?.filter((member) => member.role === 'substitute') ?? []
+    setSubstitutes([0, 1].map((index) => ({ displayName: historicalSubstitutes[index]?.displayName ?? '', valorantId: historicalSubstitutes[index]?.valorantId ?? '' })))
   }
 
   const selectRegisteredUser = (userId: string | null) => {
@@ -104,8 +108,9 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
     setName('')
     setCountryCode('')
     setCaptain('')
-    setPlayers(['', '', '', ''])
-    setSubstitute('')
+    setCaptainValorantId('')
+    setPlayers(Array.from({ length: 4 }, () => ({ displayName: '', valorantId: '' })))
+    setSubstitutes(Array.from({ length: 2 }, () => ({ displayName: '', valorantId: '' })))
     setCreateError('')
   }
 
@@ -127,12 +132,21 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
       if (!trimmedCountry) throw new Error('Choose a country.')
       if (isValorant) {
         const trimmedCaptain = captain.trim()
-        const trimmedPlayers = players.map((player) => player.trim())
-        if (!trimmedCaptain || trimmedPlayers.some((player) => !player)) {
-          throw new Error('Enter the captain and all four starting players.')
+        const trimmedCaptainId = captainValorantId.trim()
+        const trimmedPlayers = players.map((player) => ({ displayName: player.displayName.trim(), valorantId: player.valorantId.trim() }))
+        if (!trimmedCaptain || !trimmedCaptainId || trimmedPlayers.some((player) => !player.displayName || !player.valorantId)) {
+          throw new Error('Enter the name and Riot ID for the captain and all four starting players.')
         }
-        const roster: RosterInput[] = [{ displayName: trimmedCaptain, role: 'captain' }, ...trimmedPlayers.map((displayName) => ({ displayName, role: 'player' as const }))]
-        if (substitute.trim()) roster.push({ displayName: substitute.trim(), role: 'substitute' })
+        const trimmedSubstitutes = substitutes.map((player) => ({ displayName: player.displayName.trim(), valorantId: player.valorantId.trim() }))
+        const substituteValues = trimmedSubstitutes.flatMap((player) => [player.displayName, player.valorantId])
+        if (substituteValues.some(Boolean) && substituteValues.some((value) => !value)) {
+          throw new Error('Add both substitute names and Riot IDs, or leave all substitute fields empty.')
+        }
+        const roster: RosterInput[] = [
+          { displayName: trimmedCaptain, valorantId: trimmedCaptainId, role: 'captain' },
+          ...trimmedPlayers.map((player) => ({ ...player, role: 'player' as const })),
+        ]
+        if (substituteValues.every(Boolean)) roster.push(...trimmedSubstitutes.map((player) => ({ ...player, role: 'substitute' as const })))
         await onCreate({ name: trimmedName, userId: selectedUserId ? selectedUserId as Id<'users'> : undefined, countryCode: trimmedCountry, captain: trimmedCaptain, roster })
       } else {
         await onCreate({ name: trimmedName, userId: selectedUserId ? selectedUserId as Id<'users'> : undefined, countryCode: trimmedCountry })
@@ -202,9 +216,21 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
         <Field label={isValorant ? 'Team name' : 'Player name'}><Input value={name} onChange={(event) => { setName(event.target.value); if (selectedUserId) setSelectedUserId(''); if (selectedHistoryId) setSelectedHistoryId('') }} required /></Field>
         <Field label="Country"><Select value={countryCode} onValueChange={(value) => setCountryCode((value ?? '').toUpperCase())} required><SelectTrigger className="w-full"><SelectDisplay value={countryName(countryCode)} placeholder="Choose a country" /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map((country) => <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>)}</SelectContent></Select></Field>
         {isValorant && <>
-          <Field label="Captain"><Input value={captain} onChange={(event) => setCaptain(event.target.value)} required /></Field>
-          {players.map((player, index) => <Field key={index} label={`Starting player ${index + 2}`}><Input value={player} onChange={(event) => setPlayers((current) => current.map((value, playerIndex) => playerIndex === index ? event.target.value : value))} required /></Field>)}
-          <Field label="Substitute (optional)"><Input value={substitute} onChange={(event) => setSubstitute(event.target.value)} /></Field>
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground">Add five starters, or add both substitutes for a seven-player roster. Every entered player needs a Riot ID.</div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Captain name"><Input value={captain} onChange={(event) => setCaptain(event.target.value)} required /></Field>
+            <Field label="Captain Riot ID"><Input value={captainValorantId} onChange={(event) => setCaptainValorantId(event.target.value)} placeholder="Player#EUW" pattern="[^#]+#[^#]+" title="Use the Riot ID format GameName#Tag." maxLength={40} required /></Field>
+          </div>
+          {players.map((player, index) => <div key={index} className="grid gap-3 sm:grid-cols-2">
+            <Field label={`Starting player ${index + 2} name`}><Input value={player.displayName} onChange={(event) => setPlayers((current) => current.map((value, playerIndex) => playerIndex === index ? { ...value, displayName: event.target.value } : value))} required /></Field>
+            <Field label={`Starting player ${index + 2} Riot ID`}><Input value={player.valorantId} onChange={(event) => setPlayers((current) => current.map((value, playerIndex) => playerIndex === index ? { ...value, valorantId: event.target.value } : value))} placeholder="Player#EUW" pattern="[^#]+#[^#]+" title="Use the Riot ID format GameName#Tag." maxLength={40} required /></Field>
+          </div>)}
+          <div className="border-t border-border pt-4"><p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Optional — complete both substitutes for seven players</p><div className="space-y-3">
+            {substitutes.map((player, index) => <div key={index} className="grid gap-3 sm:grid-cols-2">
+              <Field label={`Substitute ${index + 1} name`}><Input value={player.displayName} onChange={(event) => setSubstitutes((current) => current.map((value, playerIndex) => playerIndex === index ? { ...value, displayName: event.target.value } : value))} /></Field>
+              <Field label={`Substitute ${index + 1} Riot ID`}><Input value={player.valorantId} onChange={(event) => setSubstitutes((current) => current.map((value, playerIndex) => playerIndex === index ? { ...value, valorantId: event.target.value } : value))} placeholder="Player#EUW" pattern="[^#]+#[^#]+" title="Use the Riot ID format GameName#Tag." maxLength={40} /></Field>
+            </div>)}
+          </div></div>
         </>}
       </div>
       {createError && <p role="alert" className="mt-4 text-sm text-destructive">{createError}</p>}
@@ -215,7 +241,7 @@ export function CompetitorsManager({ tournamentId, tournamentName, gameId, compe
     <section className="rounded-2xl border border-border bg-card p-6">
       <div className="flex items-center justify-between"><div><h2 className="font-display text-2xl font-bold uppercase">Confirmed {isValorant ? 'teams' : 'players'}</h2><p className="text-sm text-muted-foreground">{competitors.length} ready for competition · no approval queue</p></div><Users className="size-5 text-primary" /></div>
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
-        {competitors.map((competitor) => <div key={competitor._id} className="group rounded-xl border border-border bg-background p-4"><div className="flex items-start gap-3"><div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-display font-bold text-primary">{competitor.name.slice(0, 2).toUpperCase()}</div><div className="min-w-0 flex-1"><p className="truncate font-semibold">{competitor.name}</p><p className="text-xs text-muted-foreground">{competitor.countryCode ?? competitor.flag ?? 'Global'}{competitor.captain ? ` · Captain ${competitor.captain}` : ''}</p></div><button type="button" onClick={() => onRemove(competitor._id)} className="text-muted-foreground opacity-0 transition hover:text-red-400 group-hover:opacity-100"><Trash2 className="size-4" /></button></div>{competitor.roster && competitor.roster.length > 0 && <div className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">{competitor.roster.map((member) => <span key={member._id ?? `${member.role}-${member.displayName}`} className="mr-2 inline-block">{member.displayName} <span className="text-white/30">({member.role})</span></span>)}</div>}</div>)}
+        {competitors.map((competitor) => <div key={competitor._id} className="group rounded-xl border border-border bg-background p-4"><div className="flex items-start gap-3"><div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-display font-bold text-primary">{competitor.name.slice(0, 2).toUpperCase()}</div><div className="min-w-0 flex-1"><p className="truncate font-semibold">{competitor.name}</p><p className="text-xs text-muted-foreground">{competitor.countryCode ?? competitor.flag ?? 'Global'}{competitor.captain ? ` · Captain ${competitor.captain}` : ''}</p></div><button type="button" onClick={() => onRemove(competitor._id)} className="text-muted-foreground opacity-0 transition hover:text-red-400 group-hover:opacity-100"><Trash2 className="size-4" /></button></div>{competitor.roster && competitor.roster.length > 0 && <div className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">{competitor.roster.map((member) => <span key={member._id ?? `${member.role}-${member.displayName}`} className="mr-2 inline-block">{member.displayName}{member.valorantId ? ` · ${member.valorantId}` : ''} <span className="text-white/30">({member.role})</span></span>)}</div>}</div>)}
         {competitors.length === 0 && <div className="col-span-full rounded-xl border border-dashed border-border py-14 text-center text-sm text-muted-foreground">No competitors yet.</div>}
       </div>
     </section>
