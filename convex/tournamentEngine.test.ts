@@ -299,6 +299,29 @@ describe("game-aware tournament engine", () => {
     await expect(base.query(api.participants.getAllUnique, { tournamentId: efootballTournament })).rejects.toThrow("sign in");
   });
 
+  test("participant import history ignores orphaned legacy participants", async () => {
+    const organizer = authenticatedTest();
+    const tournamentId = await createTournament(organizer, "efootball", "League");
+    const { tournamentId: removedTournamentId } = await organizer.mutation(api.tournaments.create, {
+      name: "Removed history source",
+      slug: "removed-history-source",
+      gameId: "efootball",
+      format: "League",
+      status: "Upcoming",
+      startDate: "2026-08-10T10:00:00.000Z",
+    });
+    await organizer.mutation(api.participants.create, {
+      tournamentId: removedTournamentId,
+      name: "Orphaned Striker",
+      gameId: "efootball",
+    });
+    await organizer.run(async (ctx) => await ctx.db.delete(removedTournamentId));
+
+    await expect(organizer.query(api.participants.getAllUnique, { tournamentId })).resolves.not.toContainEqual(
+      expect.objectContaining({ name: "Orphaned Striker" }),
+    );
+  });
+
   test("VALORANT registration accepts five or seven identified players and rejects incomplete Riot IDs", async () => {
     const t = authenticatedTest();
     const fivePlayerTournament = await createTournament(t, "valorant", "League");

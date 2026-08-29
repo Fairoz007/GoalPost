@@ -210,7 +210,14 @@ export const getAllUnique = query({
       .sort((left, right) => right._creationTime - left._creationTime);
     const tournamentIds = [...new Set(rows.map((participant) => participant.tournamentId))];
     const tournaments = await Promise.all(tournamentIds.map((id) => ctx.db.get("tournaments", id)));
-    const visibleIds = new Set(tournaments.filter((tournament) => tournament?.status !== "Draft").map((tournament) => tournament!._id));
+    // Participant rows can outlive a tournament after a legacy import or a
+    // previously incomplete cleanup. Exclude those orphaned rows from history
+    // instead of dereferencing a missing tournament.
+    const visibleIds = new Set(
+      tournaments
+        .filter((tournament): tournament is Doc<"tournaments"> => tournament !== null && tournament.status !== "Draft")
+        .map((tournament) => tournament._id),
+    );
     const unique = [...new Map(rows
       .filter((participant) => visibleIds.has(participant.tournamentId))
       .map((participant) => [participant.name.trim().toLowerCase(), participant]))
